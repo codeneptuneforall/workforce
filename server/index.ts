@@ -98,8 +98,10 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 async function start(): Promise<void> {
   await connectDatabase();
-  app.listen(config.port, () => {
-    console.log(`[server] workforce API listening on http://localhost:${config.port}`);
+  // Bind to all interfaces: hosted platforms (Render, Railway, Koyeb, Fly) reach
+  // the container from outside, so 127.0.0.1 would be unreachable.
+  app.listen(config.port, '0.0.0.0', () => {
+    console.log(`[server] workforce API listening on http://0.0.0.0:${config.port}`);
     if (config.serveClient) console.log(`[server] serving client from ${clientDir}`);
   });
 }

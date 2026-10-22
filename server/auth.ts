@@ -54,7 +54,10 @@ export function readSessionToken(req: Request): string | null {
 export function setSessionCookie(res: Response, token: string): void {
   res.cookie(config.cookieName, token, {
     httpOnly: true,
-    sameSite: 'lax',
+    // The client is hosted separately from the API in production (e.g. Cloudflare
+    // Pages -> Render), so the session cookie must be accepted on cross-site
+    // requests. Browsers only allow that with SameSite=None + Secure.
+    sameSite: config.isProduction ? 'none' : 'lax',
     secure: config.isProduction,
     maxAge: config.sessionHours * 60 * 60 * 1000,
     path: '/'
@@ -62,7 +65,12 @@ export function setSessionCookie(res: Response, token: string): void {
 }
 
 export function clearSessionCookie(res: Response): void {
-  res.clearCookie(config.cookieName, { path: '/' });
+  res.clearCookie(config.cookieName, {
+    httpOnly: true,
+    sameSite: config.isProduction ? 'none' : 'lax',
+    secure: config.isProduction,
+    path: '/'
+  });
 }
 
 declare global {
