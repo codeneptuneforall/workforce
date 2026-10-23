@@ -39,6 +39,8 @@ const EmployeeSchema = new Schema(
     designation: String,
     teamId: String,
     joiningDate: String,
+    dateOfBirth: String,
+    photoUrl: String,
     managerId: String,
     status: { type: String, default: 'Active' },
     schedule: String,

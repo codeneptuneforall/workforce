@@ -57,7 +57,7 @@ export function EmployeeFormDrawer({ employee, onClose, onSaved }: {employee: Em
   const save = async () => {
     setTouched(true);
     if (Object.values(errs).some(Boolean)) return;
-    const next = { ...f, name: f.name.trim(), code: f.code.trim(), email: f.email.trim(), dailyTargetMinutes: targetMin as number, phone: f.phone?.trim() || undefined, workingDays: f.workingDays.filter((d) => d !== 6) };
+    const next = { ...f, name: f.name.trim(), code: f.code.trim(), email: f.email.trim(), dailyTargetMinutes: targetMin as number, phone: f.phone?.trim() || undefined, photoUrl: f.photoUrl?.trim() || undefined, dateOfBirth: f.dateOfBirth || undefined, workingDays: f.workingDays.filter((d) => d !== 6) };
     const res = await mutateWithResult(cmd.saveEmployee(next), isNew ? 'Employee created' : 'Employee updated');
     if (!res.ok) return;
     if (res.credentials) {
@@ -86,6 +86,8 @@ export function EmployeeFormDrawer({ employee, onClose, onSaved }: {employee: Em
           <Field label="Team" required error={show('teamId')}>{(id) => <Select id={id} value={f.teamId} onChange={(e) => set({ teamId: e.target.value })} invalid={!!show('teamId')}><option value="">Select team</option>{state.teams.filter((t) => t.status === 'Active').map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select>}</Field>
           <Field label="Joining date" required error={show('joiningDate')}>{(id) => <DatePicker id={id} value={f.joiningDate} onChange={(v) => set({ joiningDate: v })} invalid={!!show('joiningDate')} />}</Field>
           <Field label="Reporting manager">{(id) => <Select id={id} value={f.managerId ?? ''} onChange={(e) => set({ managerId: e.target.value })}><option value="">None</option>{managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</Select>}</Field>
+          <Field label="Date of birth" hint="Optional. Powers the birthday greeting.">{(id) => <DatePicker id={id} value={f.dateOfBirth ?? ''} onChange={(v) => set({ dateOfBirth: v || undefined })} max={todayKey()} />}</Field>
+          <Field label="Profile photo URL" hint="Optional. Shown in the birthday greeting.">{(id) => <Input id={id} value={f.photoUrl ?? ''} onChange={(e) => set({ photoUrl: e.target.value })} placeholder="https://…" />}</Field>
         </section>
 
         <section className="border-t border-line pt-5">

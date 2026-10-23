@@ -13,6 +13,7 @@ import { Avatar } from '../ui/Primitives';
 import { Button } from '../ui/Button';
 import { Logo } from '../ui/Logo';
 import { Sidebar, activeNavTo } from './Sidebar';
+import { WorkdayRituals } from '../rituals/WorkdayRituals';
 
 export function AppShell({ portal }: {portal: Role;}) {
   const { user, logout } = useAuth();
@@ -161,6 +162,8 @@ export function AppShell({ portal }: {portal: Role;}) {
           </div>
         }
       </AnimatePresence>
+
+      <WorkdayRituals />
 
       <Modal open={pwOpen} onClose={() => setPwOpen(false)} title="Change password" size="sm">
         <ChangePasswordForm onDone={() => setPwOpen(false)} />

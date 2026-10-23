@@ -26,6 +26,10 @@ export interface Employee {
   designation: string;
   teamId: string;
   joiningDate: string;
+  /** Birthday as YYYY-MM-DD. Only the month and day are used, for the greeting. */
+  dateOfBirth?: string;
+  /** Optional profile photo (URL or data URI) shown in birthday greetings and people lists. */
+  photoUrl?: string;
   managerId?: string;
   status: EmployeeStatus;
   schedule: string;
