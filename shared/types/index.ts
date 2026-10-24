@@ -341,6 +341,14 @@ export interface AuditEntry {
   reason?: string;
 }
 
+export interface LateLogin {
+  id: string;
+  employeeId: string;
+  name: string;
+  reason: string;
+  at: string;
+}
+
 export type DeductionMethod = 'not_configured' | 'daily_amount' | 'monthly_proration' | 'manual';
 export type PayrollBasis = 'not_configured' | 'calendar_days' | 'scheduled_working_days' | 'fixed_days';
 export type LeaveTreatment = 'not_configured' | 'paid' | 'unpaid';
@@ -404,6 +412,7 @@ export interface AppState {
   notifications: AppNotification[];
   audit: AuditEntry[];
   lateLogins: { employeeId: string; name: string; reason: string; at: string }[];
+  lateLoginHistory: LateLogin[];
   settings: Settings;
 }
 

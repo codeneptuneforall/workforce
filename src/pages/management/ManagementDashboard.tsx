@@ -70,7 +70,7 @@ export function ManagementDashboard() {
   { label: 'Time-log corrections pending', n: correctionRequested, to: '/management/attendance/shortfalls', tone: 'warn' },
   { label: 'Timesheets awaiting approval', n: pendingTs, to: '/management/timesheets', tone: 'warn' },
   { label: 'Leave requests awaiting approval', n: pendingLeave, to: '/management/leaves/requests', tone: 'warn' },
-  { label: 'Late logins today (>10:15)', n: (state.lateLogins || []).filter((l:any) => l.at && String(l.at).startsWith(today)).length, to: '/management/attendance/live', tone: 'warn' },
+  { label: 'Late logins today (>10:15)', n: (state.lateLogins || []).filter((l:any) => l.at && String(l.at).startsWith(today)).length, to: '/management/late-logins', tone: 'warn' },
   ...(user?.canManagePayroll ?
   [
   { label: `${monthLabel(prevMonth)} payroll · ${run.status}`, n: payrollReview ? 1 : 0, to: '/management/payroll', tone: 'warn' },

@@ -11,6 +11,17 @@ import { Schema } from 'mongoose';
 const opts = { _id: false, versionKey: false, minimize: false, strict: false } as const;
 const Mixed = Schema.Types.Mixed;
 
+const LateLoginSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    employeeId: { type: String, required: true },
+    name: { type: String, required: true },
+    reason: { type: String, required: true },
+    at: { type: Date, required: true }
+  },
+  opts
+);
+
 const UserSchema = new Schema(
   {
     _id: { type: String, required: true },
@@ -305,3 +316,4 @@ export const NotificationModel = mongoose.model('Notification', NotificationSche
 export const AuditModel = mongoose.model('AuditEntry', AuditSchema);
 export const SettingsModel = mongoose.model('AppSettings', SettingsSchema);
 export const PasswordResetModel = mongoose.model('PasswordReset', PasswordResetSchema);
+export const LateLoginModel = mongoose.model('LateLogin', LateLoginSchema);

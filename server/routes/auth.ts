@@ -12,7 +12,7 @@ import {
   verifyPassword
 } from '../auth';
 import { config } from '../config';
-import { PasswordResetModel, UserModel } from '../models';
+import { LateLoginModel, PasswordResetModel, UserModel } from '../models';
 import type { UserDocument } from '../auth';
 
 export const authRouter = Router();
@@ -49,6 +49,7 @@ authRouter.post('/login', async (req, res) => {
       return;
     }
     await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now, lateLoginReason: lateReason, lateLoginAt: now } });
+    await LateLoginModel.create({ _id: `ll-${Date.now()}-${Math.random().toString(36).slice(2)}`, employeeId: user.employeeId ?? user._id, name: user.name, reason: lateReason, at: now });
   } else {
     await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now } });
   }

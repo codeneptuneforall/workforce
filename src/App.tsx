@@ -23,6 +23,7 @@ import { AuditLogPage } from './pages/management/AuditLogPage';
 import { EmployeeDetailPage } from './pages/management/EmployeeDetailPage';
 import { EmployeesPage } from './pages/management/EmployeesPage';
 import { LeaveCalendarPage } from './pages/management/LeaveCalendarPage';
+import { LateLoginsPage } from './pages/management/LateLoginsPage';
 import { LeaveRequestsPage } from './pages/management/LeaveRequestsPage';
 import { LeaveSettingsPage } from './pages/management/LeaveSettingsPage';
 import { LiveTrackerPage } from './pages/management/LiveTrackerPage';
@@ -88,6 +89,7 @@ export function App() {
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
+                <Route path="late-logins" element={<LateLoginsPage />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
               </Route>
             </Route>
