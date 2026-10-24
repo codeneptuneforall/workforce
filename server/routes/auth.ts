@@ -39,8 +39,11 @@ authRouter.post('/login', async (req, res) => {
   const hour = now.getHours();
   const minute = now.getMinutes();
   const isLate = hour > 10 || (hour === 10 && minute >= 15);
-  
-  if (isLate && user.role === 'employee') {
+
+  // Ask for a late reason at most once per calendar day.
+  const alreadyLateToday = !!user.lateLoginAt && new Date(user.lateLoginAt).toDateString() === now.toDateString();
+
+  if (isLate && user.role === 'employee' && !alreadyLateToday) {
     if (!lateReason) {
       res.status(400).json({ error: 'You are late. Please provide a reason for being late.', code: 'late_reason_required' });
       return;

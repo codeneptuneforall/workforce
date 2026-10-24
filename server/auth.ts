@@ -18,6 +18,8 @@ export interface UserDocument {
   mustChangePassword: boolean;
   active: boolean;
   passwordChangedAt?: Date;
+  lateLoginReason?: string;
+  lateLoginAt?: Date;
 }
 
 export const toAuthUser = (user: UserDocument): AuthUser => ({
