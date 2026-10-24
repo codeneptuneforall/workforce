@@ -28,7 +28,7 @@ import { cmd } from '../../utils/commands';
 import { fmtDate, fmtDateTime, fmtMin, fromDateKey, monthDates, sessionActiveMs, todayKey, weekDates, MINUTE } from '@shared/domain/time';
 import { LeaveRange } from '../employee/MyLeavesPage';
 
-type Tab = 'overview' | 'logs' | 'attendance' | 'compliance' | 'timesheets' | 'projects' | 'leave' | 'salary' | 'payslips';
+type Tab = 'overview' | 'logs' | 'attendance' | 'compliance' | 'timesheets' | 'projects' | 'leave' | 'bank' | 'salary' | 'payslips';
 
 export function EmployeeDetailPage() {
   const { id } = useParams();
@@ -66,7 +66,7 @@ function EmployeeDetail({ emp }: {emp: Employee;}) {
 
   const tabs: {id: Tab;label: string;}[] = [
   { id: 'overview', label: 'Overview' }, { id: 'logs', label: 'Time Logs' }, { id: 'attendance', label: 'Attendance' }, { id: 'compliance', label: 'Working-Hour Compliance' },
-  { id: 'timesheets', label: 'Timesheets' }, { id: 'projects', label: 'Projects' }, { id: 'leave', label: 'Leave History' },
+  { id: 'timesheets', label: 'Timesheets' }, { id: 'projects', label: 'Projects' }, { id: 'leave', label: 'Leave History' }, { id: 'bank', label: 'Bank Details' },
   ...(canPay ? [{ id: 'salary' as Tab, label: 'Salary Structure' }, { id: 'payslips' as Tab, label: 'Payslips' }] : [])];
 
   const monthPicker =
@@ -87,7 +87,7 @@ function EmployeeDetail({ emp }: {emp: Employee;}) {
             <div className="mb-5 flex items-center gap-4"><Avatar name={emp.name} size="lg" /><div><p className="font-semibold">{emp.name}</p><p className="text-sm text-ink-muted">{emp.email}</p></div></div>
             <dl className="grid gap-5 sm:grid-cols-3">
               <KeyValue label="Phone" value={emp.phone ?? '—'} />
-              <KeyValue label="Joining date" value={fmtDate(emp.joiningDate)} />
+              <KeyValue label="Joining date" value={emp.joiningDate ? fmtDate(emp.joiningDate) : 'Not provided'} />
               <KeyValue label="Reporting manager" value={personName(emp.managerId)} />
               <KeyValue label="Schedule" value={emp.schedule} />
               <KeyValue label="Daily target" value={fmtMin(emp.dailyTargetMinutes)} />
@@ -152,11 +152,22 @@ function EmployeeDetail({ emp }: {emp: Employee;}) {
         }
         </Panel>
       }
+      {tab === 'bank' &&
+      <Panel title="Bank details">
+          <dl className="grid gap-5 sm:grid-cols-2">
+            <KeyValue label="Beneficiary name" value={emp.beneficiaryName ?? '—'} />
+            <KeyValue label="Bank name" value={emp.bankName ?? '—'} />
+            <KeyValue label="Account number" value={emp.bankAccountNumber ? maskAccount(emp.bankAccountNumber) : '—'} />
+            <KeyValue label="IFSC" value={emp.ifscCode ?? '—'} />
+          </dl>
+          <p className="mt-4 text-xs text-ink-muted">Edit these from the employee form. They flow into payslip PDFs via the salary structure.</p>
+        </Panel>
+      }
       {tab === 'salary' && canPay &&
       <Panel title="Effective salary structure" actions={<ButtonLink to={`/management/payroll/salary-structures?employee=${emp.id}`} size="sm">Edit structure</ButtonLink>}>
           {!ss ? <p className="text-sm text-ink-muted">No salary structure configured.</p> :
         <dl className="grid gap-5 sm:grid-cols-4">
-              <KeyValue label="Effective from" value={fmtDate(ss.effectiveFrom)} />
+              <KeyValue label="Effective from" value={ss.effectiveFrom ? fmtDate(ss.effectiveFrom) : 'Not provided'} />
               <KeyValue label="CTC (annual)" value={fmtINR(ss.ctcAnnual)} />
               <KeyValue label="Monthly gross" value={fmtINR(grossOf(ss))} />
               <KeyValue label="Bank" value={ss.bankName ? `${ss.bankName} · ${maskAccount(ss.accountNumber)}` : <span className="text-bad">Missing</span>} />

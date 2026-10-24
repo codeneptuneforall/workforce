@@ -48,7 +48,7 @@ export function SalaryStructuresPage() {
                   <Td align="right">{ss ? fmtINR(ss.ctcAnnual) : '—'}</Td>
                   <Td align="right">{ss ? fmtINR(grossOf(ss)) : '—'}</Td>
                   <Td align="right">{ss ? fmtINR(Object.values(ss.deductions).reduce((a, b) => a + b, 0)) : '—'}</Td>
-                  <Td className="whitespace-nowrap text-xs">{ss?.accountNumber ? <span className="text-ink-muted">{ss.bankName} · {maskAccount(ss.accountNumber)}</span> : <span className="font-medium text-bad">Missing</span>}</Td>
+                  <Td className="whitespace-nowrap text-xs">{ss?.accountNumber ? <span className="text-ink-muted">{ss.bankName} · {maskAccount(ss.accountNumber)}</span> : e.bankAccountNumber ? <span className="text-ink-muted">{e.bankName} · {maskAccount(e.bankAccountNumber)}</span> : <span className="font-medium text-bad">Missing</span>}</Td>
                 </Tr>);
 
             })}
@@ -70,7 +70,7 @@ function SalaryDrawer({ employee, onClose }: {employee: Employee | null;onClose:
   useEffect(() => {
     if (!employee) return;
     const ss = state.salary.find((s) => s.employeeId === employee.id);
-    setF(ss ? { ...ss, earnings: { ...ss.earnings }, deductions: { ...ss.deductions } } : blank(employee.id));
+    setF(ss ? { ...ss, earnings: { ...ss.earnings }, deductions: { ...ss.deductions } } : { ...blank(employee.id), bankName: employee.bankName ?? '', accountNumber: employee.bankAccountNumber ?? '', effectiveFrom: employee.joiningDate || todayKey() });
     setReveal(false);setReason('');setTouched(false);setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.id]);
@@ -88,7 +88,7 @@ function SalaryDrawer({ employee, onClose }: {employee: Employee | null;onClose:
   <Field label={label}>{(id) => <Input id={id} type="number" min={0} step="0.01" className="tnum" value={value} onChange={(e) => onChange(num(e.target.value))} />}</Field>;
 
   return (
-    <Drawer open onClose={onClose} size="lg" title={`Salary structure · ${employee.name}`} description={`${employee.code} · ${employee.designation} · joined ${fmtDate(employee.joiningDate)}`}
+    <Drawer open onClose={onClose} size="lg" title={`Salary structure · ${employee.name}`} description={`${employee.code} · ${employee.designation} · joined {employee.joiningDate ? fmtDate(employee.joiningDate) : 'N/A'}`}
     footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button loading={pending} onClick={save}>Save structure</Button></>}>
       <div className="space-y-6">
         <section className="grid gap-4 sm:grid-cols-2">

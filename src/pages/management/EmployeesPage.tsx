@@ -56,7 +56,7 @@ export function EmployeesPage() {
                     <Td className="whitespace-nowrap text-ink-muted">{team(e.teamId)?.name}</Td>
                     <Td>{e.status === 'Active' ? <span className="flex items-center gap-2"><StatusBadge status={d.status} /><span className="text-xs text-ink-muted tnum">{fmtMin(d.completedMin)}</span></span> : <span className="text-ink-muted">—</span>}</Td>
                     <Td align="right">{fmtMin(e.dailyTargetMinutes)}</Td>
-                    <Td className="whitespace-nowrap text-ink-muted">{fmtDate(e.joiningDate, 'd MMM yyyy')}</Td>
+                    <Td className="whitespace-nowrap text-ink-muted">{e.joiningDate ? fmtDate(e.joiningDate, 'd MMM yyyy') : '—'}</Td>
                     <Td><StatusBadge status={e.status} /></Td>
                   </Tr>);
 
