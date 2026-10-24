@@ -1,19 +1,33 @@
+import { useState } from 'react';
 import { PageHeader, Panel } from '../../components/ui/Primitives';
+import { Select } from '../../components/ui/Field';
 import { Table, Td, Th, Tr } from '../../components/ui/Table';
 import { useData } from '../../contexts/DataContext';
 import { fmtDateTime } from '@shared/domain/time';
 
 export function LateLoginsPage() {
   const { state } = useData();
-  const rows = [...(state.lateLoginHistory || [])].sort((a, b) => (a.at < b.at ? 1 : -1));
+  const [empId, setEmpId] = useState('');
+  const [month, setMonth] = useState('');
+  const rows = (state.lateLoginHistory || [])
+    .filter((r) => !empId || r.employeeId === empId)
+    .filter((r) => !month || r.at.startsWith(month))
+    .sort((a, b) => (a.at < b.at ? 1 : -1));
   const byEmp = new Map<string, number>();
   for (const r of rows) byEmp.set(r.employeeId, (byEmp.get(r.employeeId) ?? 0) + 1);
   return (
     <div>
       <PageHeader title="Late logins" description="Employees who signed in after 10:15, with their reason." />
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Select aria-label="Employee" value={empId} onChange={(e) => setEmpId(e.target.value)}>
+          <option value="">All employees</option>
+          {state.employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </Select>
+        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded border border-line bg-surface px-3 py-2 text-sm" />
+      </div>
       <Panel flush>
         <Table>
-          <thead><tr><Th>Employee</Th><Th>Time</Th><Th>Reason</Th><Th align="right">Late this month</Th></tr></thead>
+          <thead><tr><Th>Employee</Th><Th>Time</Th><Th>Reason</Th><Th align="right">Late count (filtered)</Th></tr></thead>
           <tbody>
             {rows.length === 0 && <tr><Td colSpan={4} className="py-8 text-center text-ink-muted">No late logins recorded.</Td></tr>}
             {rows.map((r) => (
