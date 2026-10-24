@@ -1,5 +1,5 @@
 import type * as React from 'react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { AuthUser, Result } from '@shared/types';
 import { ApiError, api } from '../api/client';
@@ -17,8 +17,6 @@ interface AuthValue {
   refresh: () => Promise<void>;
 }
 
-const AUTH_CHANNEL = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('workforce-auth') : null;
-
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function validatePassword(pw: string): string | null {
@@ -33,7 +31,6 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [initialising, setInitialising] = useState(true);
   const navigate = useNavigate();
-  const broadcastRef = useRef(false);
 
   /** Restores the session from the httpOnly cookie on a page reload. */
   const refresh = useCallback(async () => {
@@ -56,34 +53,18 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
     };
   }, [refresh]);
 
-  useEffect(() => {
-    if (!AUTH_CHANNEL) return;
-    const handler = (ev: MessageEvent) => {
-      const data = ev.data;
-      if (data?.type === 'login' && data?.user && !broadcastRef.current) {
-        setUser(data.user);
-      } else if (data?.type === 'logout') {
-        setUser(null);
-        navigate('/login', { replace: true, state: { signedOut: true } });
-      }
-    };
-    AUTH_CHANNEL.addEventListener('message', handler);
-    return () => AUTH_CHANNEL.removeEventListener('message', handler);
-  }, [navigate]);
-
   const expire = useCallback(() => {
     setUser(null);
-    if (AUTH_CHANNEL) AUTH_CHANNEL.postMessage({ type: 'logout' });
     navigate('/session-expired', { replace: true });
   }, [navigate]);
 
   const login = useCallback(async (email: string, password: string, lateReason?: string) => {
     try {
-      const res = await api.login(email, password, lateReason);
+      const res: any = await api.login(email, password, lateReason);
       setUser(res.user);
-      broadcastRef.current = true;
-      if (AUTH_CHANNEL) AUTH_CHANNEL.postMessage({ type: 'login', user: res.user });
-      setTimeout(() => { broadcastRef.current = false; }, 100);
+      if (res.token && typeof localStorage !== 'undefined') {
+        localStorage.setItem('wf_token', res.token);
+      }
       return { ok: true, user: res.user };
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Sign-in failed. Please try again.';
@@ -98,8 +79,10 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
     } catch {
       // The cookie is cleared on the next successful request either way.
     }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('wf_token');
+    }
     setUser(null);
-    if (AUTH_CHANNEL) AUTH_CHANNEL.postMessage({ type: 'logout' });
     navigate('/login', { replace: true, state: { signedOut: true } });
   }, [navigate]);
 

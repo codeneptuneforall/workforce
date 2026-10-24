@@ -36,11 +36,13 @@ export class ApiError extends Error {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('wf_token') : null;
     response = await fetch(`${BASE}/api${path}`, {
       ...init,
       credentials: 'include',
       headers: {
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers ?? {})
       }
     });

@@ -51,8 +51,9 @@ authRouter.post('/login', async (req, res) => {
   }
   
   const authUser = toAuthUser(user);
-  setSessionCookie(res, signSessionToken(authUser));
-  res.json({ user: authUser });
+  const token = signSessionToken(authUser);
+  setSessionCookie(res, token);
+  res.json({ user: authUser, token });
 });
 
 /** Sign out and clear the session cookie. */
