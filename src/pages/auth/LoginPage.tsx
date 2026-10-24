@@ -58,7 +58,7 @@ export function LoginPage() {
     const res = await login(email, password, needLateReason ? lateReason : undefined);
     setPending(false);
     if (!res.ok || !res.user) {
-      if (res.code === 'late_reason_required') {
+      if ((res as any).code === 'late_reason_required') {
         setNeedLateReason(true);
         setError(res.error ?? 'You are late. Please provide a reason.');
         return;

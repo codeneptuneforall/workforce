@@ -65,7 +65,7 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
       return { ok: true, user: res.user };
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Sign-in failed. Please try again.';
-      const code = err instanceof ApiError ? (err as any).data?.code || (err as any).code : undefined;
+      const code = err instanceof ApiError ? err.code || err.data?.code : undefined;
       return { ok: false, error: message, code };
     }
   }, []);

@@ -22,10 +22,14 @@ const BASE = (import.meta.env?.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code?: string;
+  data?: any;
+  constructor(message: string, status: number, code?: string, data?: any) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
+    this.data = data;
   }
 }
 
@@ -63,7 +67,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       (gateway
         ? 'The API server is not responding. Start it with "npm run dev" and try again.'
         : `Request failed (${response.status}).`);
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, (payload.code as string) || (payload as any).code, payload);
   }
   return payload as T;
 }
