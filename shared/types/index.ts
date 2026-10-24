@@ -10,6 +10,9 @@ export interface UserAccount {
   canManagePayroll: boolean;
   mustChangePassword?: boolean;
   active?: boolean;
+  lastLoginAt?: string;
+  lateLoginReason?: string;
+  lateLoginAt?: string;
 }
 
 /** The safe, client-facing shape of the signed-in account. Never carries secrets. */
@@ -30,6 +33,13 @@ export interface Employee {
   dateOfBirth?: string;
   /** Optional profile photo (URL or data URI) shown in birthday greetings and people lists. */
   photoUrl?: string;
+  bloodGroup?: string;
+  emergencyNumber?: string;
+  address?: string;
+  beneficiaryName?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  ifscCode?: string;
   managerId?: string;
   status: EmployeeStatus;
   schedule: string;

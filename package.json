@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",
+    "@types/multer": "^2.3.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -33,6 +34,7 @@
     "lottie-web": "^5.13.0",
     "lucide-react": "0.522.0",
     "mongoose": "^8.6.0",
+    "multer": "^2.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",

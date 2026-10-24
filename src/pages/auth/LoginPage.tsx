@@ -26,6 +26,8 @@ export function LoginPage() {
   const [touched, setTouched] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lateReason, setLateReason] = useState('');
+  const [needLateReason, setNeedLateReason] = useState(false);
   const redirectHandled = useRef(false);
 
   const emailError = !email ? 'Enter your work email.' : !/^\S+@\S+\.\S+$/.test(email) ? 'Enter a valid email address.' : null;
@@ -48,15 +50,23 @@ export function LoginPage() {
     setTouched(true);
     setError(null);
     if (emailError || pwError) return;
+    if (needLateReason && !lateReason.trim()) {
+      setError('Please provide a reason for being late.');
+      return;
+    }
     setPending(true);
-    const res = await login(email, password);
+    const res = await login(email, password, needLateReason ? lateReason : undefined);
     setPending(false);
-    if (!res.ok || !res.user) return setError(res.error ?? 'Sign-in failed.');
+    if (!res.ok || !res.user) {
+      if (res.code === 'late_reason_required') {
+        setNeedLateReason(true);
+        setError(res.error ?? 'You are late. Please provide a reason.');
+        return;
+      }
+      return setError(res.error ?? 'Sign-in failed.');
+    }
     redirectHandled.current = true;
     const home = res.user.role === 'management' ? '/management/dashboard' : '/employee/dashboard';
-    // Only follow the deep link when it belongs to the portal of the account that just
-    // signed in. A link left over from another account would otherwise drop the user on
-    // a page their role cannot open.
     const from = state?.from && belongsToPortal(state.from, res.user.role) ? state.from : home;
     navigate(from, { replace: true });
   };
@@ -82,6 +92,11 @@ export function LoginPage() {
             </div>
           }
         </Field>
+        {needLateReason && (
+          <Field label="Reason for being late (required after 10:15)" required>
+            {(id) => <Input id={id} value={lateReason} onChange={(e) => setLateReason(e.target.value)} placeholder="e.g., Traffic jam, Vehicle breakdown" />}
+          </Field>
+        )}
         <div className="flex justify-end">
           <Link to="/forgot-password" className="text-sm font-medium text-brand-700 hover:text-brand-800">Forgot password?</Link>
         </div>

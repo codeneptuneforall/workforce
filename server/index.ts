@@ -9,6 +9,7 @@ import { config } from './config';
 import { connectDatabase, disconnectDatabase } from './db';
 import { apiRouter } from './routes/api';
 import { authRouter } from './routes/auth';
+import uploadRouter from './routes/upload';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(dir, '../dist/client');
@@ -65,6 +66,8 @@ app.use('/api/auth/reset-password', loginLimiter);
 // "who am I" and "change my password" endpoints need the signed-in account.
 app.use('/api', attachUser);
 app.use('/api/auth', authRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/uploads', express.static(path.resolve(dir, '../uploads')));
 app.use('/api', apiRouter);
 
 app.use('/api', (_req, res) => {

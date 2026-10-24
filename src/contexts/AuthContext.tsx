@@ -8,7 +8,7 @@ interface AuthValue {
   user: AuthUser | null;
   /** True while the initial "who am I" request is still running. */
   initialising: boolean;
-  login: (email: string, password: string) => Promise<Result & {user?: AuthUser;}>;
+  login: (email: string, password: string, lateReason?: string) => Promise<Result & {user?: AuthUser;code?: string;}>;
   logout: () => Promise<void>;
   expire: () => void;
   changePassword: (current: string, next: string) => Promise<Result>;
@@ -58,14 +58,15 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
     navigate('/session-expired', { replace: true });
   }, [navigate]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, lateReason?: string) => {
     try {
-      const res = await api.login(email, password);
+      const res = await api.login(email, password, lateReason);
       setUser(res.user);
       return { ok: true, user: res.user };
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Sign-in failed. Please try again.';
-      return { ok: false, error: message };
+      const code = err instanceof ApiError ? (err as any).data?.code || (err as any).code : undefined;
+      return { ok: false, error: message, code };
     }
   }, []);
 

@@ -24,6 +24,7 @@ const findUser = async (email: string): Promise<UserDocument | null> =>
 authRouter.post('/login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   const password = String(req.body?.password ?? '');
+  const lateReason = String(req.body?.lateReason ?? '').trim();
   if (!email || !password) {
     res.status(400).json({ error: 'Enter your work email and password.' });
     return;
@@ -33,7 +34,22 @@ authRouter.post('/login', async (req, res) => {
     res.status(401).json({ error: 'The email or password is incorrect.' });
     return;
   }
-  await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
+  
+  const now = new Date();
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+  const isLate = hour > 10 || (hour === 10 && minute >= 15);
+  
+  if (isLate && user.role === 'employee') {
+    if (!lateReason) {
+      res.status(400).json({ error: 'You are late. Please provide a reason for being late.', code: 'late_reason_required' });
+      return;
+    }
+    await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now, lateLoginReason: lateReason, lateLoginAt: now } });
+  } else {
+    await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now } });
+  }
+  
   const authUser = toAuthUser(user);
   setSessionCookie(res, signSessionToken(authUser));
   res.json({ user: authUser });

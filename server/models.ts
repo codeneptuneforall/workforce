@@ -24,7 +24,9 @@ const UserSchema = new Schema(
     mustChangePassword: { type: Boolean, default: false },
     active: { type: Boolean, default: true },
     passwordChangedAt: { type: Date },
-    lastLoginAt: { type: Date }
+    lastLoginAt: { type: Date },
+    lateLoginReason: { type: String },
+    lateLoginAt: { type: Date }
   },
   { _id: false, versionKey: false, minimize: false }
 );
@@ -41,6 +43,13 @@ const EmployeeSchema = new Schema(
     joiningDate: String,
     dateOfBirth: String,
     photoUrl: String,
+    bloodGroup: String,
+    emergencyNumber: String,
+    address: String,
+    beneficiaryName: String,
+    bankName: String,
+    bankAccountNumber: String,
+    ifscCode: String,
     managerId: String,
     status: { type: String, default: 'Active' },
     schedule: String,
@@ -68,9 +77,7 @@ const ProjectSchema = new Schema(
     _id: { type: String, required: true },
     name: { type: String, required: true },
     code: { type: String, required: true },
-    description: String,
     client: String,
-    managerId: String,
     teamIds: { type: [String], default: [] },
     employeeIds: { type: [String], default: [] },
     startDate: String,
@@ -89,12 +96,9 @@ const TaskSchema = new Schema(
   {
     _id: { type: String, required: true },
     title: { type: String, required: true },
-    description: String,
     projectId: String,
     assigneeId: String,
-    teamId: String,
     priority: String,
-    startDate: String,
     dueDate: String,
     status: { type: String, default: 'To Do' },
     kind: { type: String, default: 'Work' }
@@ -108,10 +112,7 @@ const SessionSchema = new Schema(
   {
     _id: { type: String, required: true },
     employeeId: { type: String, required: true },
-    projectId: String,
     taskId: String,
-    description: String,
-    notes: String,
     date: { type: String, required: true },
     intervals: { type: [Mixed], default: [] },
     status: { type: String, default: 'Completed' }
@@ -161,11 +162,9 @@ const LeaveSchema = new Schema(
     startDate: { type: String, required: true },
     endDate: { type: String, required: true },
     days: { type: Number, default: 0 },
-    reason: String,
     contact: String,
     attachmentName: String,
     status: { type: String, default: 'Pending Approval' },
-    submittedAt: String,
     retrospective: { type: Boolean, default: false },
     decidedBy: String,
     decidedAt: String,
@@ -182,7 +181,6 @@ const HolidaySchema = new Schema(
     name: { type: String, required: true },
     date: { type: String, required: true },
     type: { type: String, default: 'Company' },
-    description: String,
     status: { type: String, default: 'Draft' }
   },
   opts
@@ -194,7 +192,6 @@ const SalarySchema = new Schema(
     _id: { type: String, required: true },
     effectiveFrom: String,
     ctcAnnual: { type: Number, default: 0 },
-    bankName: String,
     accountNumber: String,
     uan: String,
     esiNumber: String,
@@ -233,8 +230,6 @@ const PayslipSchema = new Schema(
     month: { type: String, required: true },
     version: { type: Number, default: 1 },
     status: { type: String, default: 'Generated' },
-    generatedAt: String,
-    releasedAt: String,
     revisionReason: String,
     data: { type: Mixed, default: {} }
   },
@@ -267,7 +262,6 @@ const AuditSchema = new Schema(
     at: String,
     previous: String,
     next: String,
-    reason: String
   },
   opts
 );
