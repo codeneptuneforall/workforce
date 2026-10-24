@@ -70,6 +70,25 @@ app.use('/api/upload', uploadRouter);
 app.use('/uploads', express.static(path.resolve(dir, '../uploads')));
 app.use('/api', apiRouter);
 
+app.post('/api/seed-demo', async (req, res) => {
+  const token = String(req.headers['x-seed-token'] || req.query.token || '');
+  if (token !== (process.env.SEED_TOKEN || 'seed-temp')) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  try {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execP = promisify(exec);
+    const { stdout, stderr } = await execP('npm run seed -- --demo', { cwd: path.resolve(dir, '..'), env: process.env });
+    console.log(stdout);
+    console.error(stderr);
+    res.json({ ok: true, stdout, stderr });
+  } catch (e: any) {
+    console.error('seed error', e);
+    res.status(500).json({ error: e.message, stdout: e.stdout, stderr: e.stderr });
+  }
+});
+
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Unknown API endpoint.' });
 });
