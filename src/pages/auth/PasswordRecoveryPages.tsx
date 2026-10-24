@@ -1,7 +1,7 @@
 import type * as React from 'react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2Icon, MailIcon } from 'lucide-react';
+import { CheckCircle2Icon, CopyIcon, MailIcon } from 'lucide-react';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { Field, Input } from '../../components/ui/Field';
@@ -15,6 +15,7 @@ export function ForgotPasswordPage() {
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
   const [devToken, setDevToken] = useState<string | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const emailError = !email ? 'Enter your work email.' : !/^\S+@\S+\.\S+$/.test(email) ? 'Enter a valid email address.' : null;
 
@@ -43,9 +44,34 @@ export function ForgotPasswordPage() {
           {devToken ?
           <Banner tone="info" className="mt-6">No mail provider is connected, so the reset token is shown here. In a deployed environment it is only sent by email.</Banner> :
           <Banner tone="info" className="mt-6">The reset link has been sent to your work email address.</Banner>}
+          {devToken && (
+            <div className="mt-4 rounded-lg border border-line bg-surface p-3">
+              <p className="mb-2 text-xs text-ink-muted">Reset token</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 overflow-x-auto rounded bg-canvas px-2 py-1 text-xs">{devToken}</code>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={CopyIcon}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(devToken);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    } catch {}
+                  }}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
+              <div className="mt-2">
+                <ButtonLink to={`/reset-password?email=${encodeURIComponent(email)}&token=${encodeURIComponent(devToken)}`} variant="primary" size="sm">Continue to reset</ButtonLink>
+              </div>
+            </div>
+          )}
           <div className="mt-6 flex flex-wrap gap-2">
-            {devToken && <ButtonLink to={`/reset-password?email=${encodeURIComponent(email)}&token=${encodeURIComponent(devToken)}`} variant="primary">Continue to reset</ButtonLink>}
-            <ButtonLink to="/login">Back to sign in</ButtonLink>
+            {!devToken && <ButtonLink to="/login">Back to sign in</ButtonLink>}
+            {devToken && <ButtonLink to="/login" variant="ghost">Back to sign in</ButtonLink>}
           </div>
         </div> :
 
