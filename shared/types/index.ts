@@ -403,6 +403,7 @@ export interface AppState {
   payslips: Payslip[];
   notifications: AppNotification[];
   audit: AuditEntry[];
+  lateLogins: { employeeId: string; name: string; reason: string; at: string }[];
   settings: Settings;
 }
 

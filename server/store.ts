@@ -15,6 +15,7 @@ import {
   SessionModel,
   SettingsModel,
   TaskModel,
+  UserModel,
   TeamModel,
   TimesheetModel
 } from './models';
@@ -63,6 +64,7 @@ export async function loadState(): Promise<AppState> {
     payslips,
     notifications,
     audit,
+    lateUsers,
     settingsDoc
   ] = await Promise.all([
     EmployeeModel.find({}).lean(),
@@ -79,6 +81,7 @@ export async function loadState(): Promise<AppState> {
     PayslipModel.find({}).lean(),
     NotificationModel.find({}).lean(),
     AuditModel.find({}).sort({ at: -1 }).limit(1000).lean(),
+    UserModel.find({ lateLoginAt: { $exists: true } }).lean(),
     SettingsModel.findOne({ _id: 'app' }).lean()
   ]);
 
@@ -98,6 +101,7 @@ export async function loadState(): Promise<AppState> {
     payslips: payslips.map((d) => withId<Payslip>(d)),
     notifications: notifications.map((d) => withId<AppNotification>(d)),
     audit: audit.map((d) => withId<AuditEntry>(d)),
+    lateLogins: lateUsers.map((u: any) => ({ employeeId: u.employeeId ?? u._id, name: u.name, reason: u.lateLoginReason ?? '', at: u.lateLoginAt ? new Date(u.lateLoginAt).toISOString() : '' })),
     settings: (settingsDoc?.settings ?? {}) as Settings
   };
   return state;

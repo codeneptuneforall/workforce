@@ -5,7 +5,7 @@ import { runCommand } from '../../shared/domain/commands';
 import { provisionEmployeeAccount, resetEmployeePassword, setEmployeeAccountActive } from '../accounts';
 import { requireAuth, requirePasswordChanged, requireRole } from '../auth';
 import { UserModel } from '../models';
-import { ensureLoaded, persistDiff, setCachedState } from '../store';
+import { ensureLoaded, loadState, persistDiff, setCachedState } from '../store';
 
 export const apiRouter = Router();
 
@@ -26,7 +26,8 @@ function serialise<T>(task: () => Promise<T>): Promise<T> {
 
 /** The full application state, filtered for the signed-in account. */
 apiRouter.get('/state', requireAuth, requirePasswordChanged, async (req, res) => {
-  const state = await ensureLoaded();
+  const state = await loadState();
+  setCachedState(state);
   res.json({ state: projectState(state, req.user!) });
 });
 

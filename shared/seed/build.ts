@@ -157,6 +157,7 @@ export function buildMasterState(now: number = Date.now()): AppState {
     payslips: [],
     notifications: [],
     audit: [],
+    lateLogins: [],
     settings: { ...defaultSettings }
   };
 }
@@ -186,6 +187,7 @@ export function buildEmptyState(now: number = Date.now()): AppState {
     payslips: [],
     notifications: [],
     audit: [],
+    lateLogins: [],
     settings: { ...defaultSettings }
   };
 }
@@ -403,6 +405,7 @@ export function buildInitialState(now: number = Date.now()): AppState {
     payslips,
     notifications,
     audit,
+    lateLogins: [],
     settings
   };
 }

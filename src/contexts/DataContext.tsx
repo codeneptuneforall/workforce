@@ -86,6 +86,7 @@ const EMPTY_STATE: AppState = {
   payslips: [],
   notifications: [],
   audit: [],
+  lateLogins: [],
   settings: {
     companyName: '',
     companyAddress: '',
