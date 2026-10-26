@@ -37,12 +37,17 @@ authRouter.post('/login', async (req, res) => {
   }
   
   const now = new Date();
-  const hour = now.getHours();
-  const minute = now.getMinutes();
+  // Render runs in UTC; the office operates in IST (UTC+5:30). Shift the clock to IST
+  // before checking the 10:15 AM late cutoff, otherwise a 10:51 AM IST login reads as
+  // 5:21 AM UTC and is never flagged as late.
+  const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+  const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+  const hour = istNow.getUTCHours();
+  const minute = istNow.getUTCMinutes();
   const isLate = hour > 10 || (hour === 10 && minute >= 15);
 
-  // Ask for a late reason at most once per calendar day.
-  const alreadyLateToday = !!user.lateLoginAt && new Date(user.lateLoginAt).toDateString() === now.toDateString();
+  // Ask for a late reason at most once per calendar day (in IST).
+  const alreadyLateToday = !!user.lateLoginAt && new Date(user.lateLoginAt).toDateString() === istNow.toDateString();
 
   if (isLate && user.role === 'employee' && !alreadyLateToday) {
     if (!lateReason) {
