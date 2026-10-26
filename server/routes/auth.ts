@@ -13,6 +13,7 @@ import {
 } from '../auth';
 import { config } from '../config';
 import { LateLoginModel, PasswordResetModel, UserModel } from '../models';
+import { invalidateCache } from '../store';
 import type { UserDocument } from '../auth';
 
 export const authRouter = Router();
@@ -50,8 +51,10 @@ authRouter.post('/login', async (req, res) => {
     }
     await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now, lateLoginReason: lateReason, lateLoginAt: now } });
     await LateLoginModel.create({ _id: `ll-${Date.now()}-${Math.random().toString(36).slice(2)}`, employeeId: user.employeeId ?? user._id, name: user.name, reason: lateReason, at: now });
+    invalidateCache();
   } else {
     await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now } });
+    invalidateCache();
   }
   
   const authUser = toAuthUser(user);

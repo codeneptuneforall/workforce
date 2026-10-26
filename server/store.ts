@@ -141,6 +141,11 @@ export function setCachedState(state: AppState): void {
   cache = state;
 }
 
+/** Drop the in-memory cache so the next state read re-fetches from MongoDB. */
+export function invalidateCache(): void {
+  cache = null;
+}
+
 /** Writes the difference between two snapshots to MongoDB. */
 export async function persistDiff(prev: AppState, next: AppState): Promise<void> {
   await Promise.all([
