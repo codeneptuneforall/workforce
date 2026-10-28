@@ -11,6 +11,7 @@ import { cn } from '../../utils/cn';
 import type { Command } from '../../utils/commands';
 import { cmd } from '../../utils/commands';
 import { fmtClock, fmtDate, fmtMin, fmtTime, sessionActiveMs, sessionPausedMs, todayKey, MINUTE } from '@shared/domain/time';
+import { breakAt, breakLabel, isBreakTime } from '@shared/domain/workday';
 import { StatusBadge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Field, Input, Select, Textarea } from '../ui/Field';
@@ -167,6 +168,8 @@ export function TimerPanel({ employee }: {employee: Employee;}) {
   const { projects } = useAssignable(state, employee);
 
   const today = todayKey(now);
+  const currentBreak = breakAt(now);
+  const inBreak = !!currentBreak;
   const mine = state.sessions.filter((s) => s.employeeId === employee.id);
   const active = mine.find((s) => s.status === 'Working' && s.date === today);
   const pausedToday = mine.filter((s) => s.status === 'Paused' && s.date === today);
@@ -202,6 +205,16 @@ export function TimerPanel({ employee }: {employee: Employee;}) {
     <div className="space-y-4">
       {!online &&
       <Banner tone="warn" title="You’re offline">Timer actions won’t save until you reconnect. A running timer keeps counting from its saved start time.</Banner>
+      }
+      {inBreak && current &&
+      <Banner tone="warn" title="Break time — timer auto-paused">
+        It is {breakLabel(currentBreak)}. Your running timer was paused automatically. You can resume it after the break ends.
+      </Banner>
+      }
+      {inBreak && !current &&
+      <Banner tone="neutral" title="Break time">
+        It is {breakLabel(currentBreak)}. Starting or resuming timers is not allowed during break hours.
+      </Banner>
       }
       {current && restoredSessionIds.includes(current.id) && !restoredDismissed &&
       <Banner tone="info" title="Timer restored" action={<Button size="sm" variant="ghost" onClick={() => setRestoredDismissed(true)}>Dismiss</Button>}>
@@ -241,14 +254,14 @@ export function TimerPanel({ employee }: {employee: Employee;}) {
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
               {current.status === 'Working' ?
-            <Button size="lg" variant="secondary" icon={PauseIcon} loading={pending} onClick={() => exec(cmd.pauseTimer(current.id), 'Timer paused')}>Pause</Button> :
+            <Button size="lg" variant="secondary" icon={PauseIcon} loading={pending} disabled={inBreak} onClick={() => exec(cmd.pauseTimer(current.id), 'Timer paused')}>Pause</Button> :
 
-            <Button size="lg" variant="secondary" icon={PlayIcon} loading={pending} onClick={() => exec(cmd.resumeTimer(current.id), 'Timer resumed')}>Resume</Button>
+            <Button size="lg" variant="secondary" icon={PlayIcon} loading={pending} disabled={inBreak} onClick={() => exec(cmd.resumeTimer(current.id), 'Timer resumed')}>Resume</Button>
             }
               <Button size="lg" icon={SquareIcon} onClick={() => {setError(null);setEndOpen(true);}} disabled={pending}>End task</Button>
             </div>
           </div>
-          <button onClick={() => setSwitchOpen(true)} className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800">
+          <button onClick={() => setSwitchOpen(true)} className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800" disabled={inBreak}>
             <ArrowLeftRightIcon className="h-4 w-4" /> Switch to another task
           </button>
           {otherPaused.length > 0 &&
@@ -259,7 +272,7 @@ export function TimerPanel({ employee }: {employee: Employee;}) {
             <li key={s.id} className="flex items-center justify-between gap-3 text-sm">
                     <span className="min-w-0 truncate">{task(s.taskId)?.title} <span className="text-ink-muted">· {fmtMin(Math.floor(sessionActiveMs(s, now) / MINUTE))}</span></span>
                     <div className="flex shrink-0 gap-1">
-                      <Button size="sm" variant="ghost" loading={pending} onClick={() => exec(cmd.resumeTimer(s.id), 'Timer resumed')}>Resume</Button>
+                      <Button size="sm" variant="ghost" loading={pending} disabled={inBreak} onClick={() => exec(cmd.resumeTimer(s.id), 'Timer resumed')}>Resume</Button>
                       <Button size="sm" variant="ghost" loading={pending} onClick={() => exec(cmd.endTimer(s.id, ''), 'Session saved')}>End</Button>
                     </div>
                   </li>
@@ -273,7 +286,7 @@ export function TimerPanel({ employee }: {employee: Employee;}) {
 
       <div className="space-y-4">
           <TaskPicker emp={employee} value={selection} onChange={(patch) => setSelection((s) => ({ ...s, ...patch }))} errors={startErrors} />
-          <Button size="lg" icon={PlayIcon} className="w-full sm:w-auto" loading={pending} onClick={start} disabled={!online}>Start timer</Button>
+          <Button size="lg" icon={PlayIcon} className="w-full sm:w-auto" loading={pending} onClick={start} disabled={!online || inBreak}>Start timer</Button>
         </div>
       }
 

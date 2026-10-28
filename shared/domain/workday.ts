@@ -73,6 +73,41 @@ export function clockLabel(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/** Milliseconds offset for IST (UTC+5:30) — the company's local wall clock. */
+export const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+/** Current time as a Date shifted to IST (company wall clock). */
+export function nowIST(now: number = Date.now()): Date {
+  return new Date(now + IST_OFFSET_MS);
+}
+
+/** Minutes from midnight in IST, using UTC methods on an IST-shifted Date. */
+export function minutesOfDayIST(date: Date): number {
+  return date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
+}
+
+/** The break (if any) that is currently active at the given UTC timestamp (IST). */
+export function breakAt(now: number = Date.now()): WorkdayBreak | null {
+  const ist = nowIST(now);
+  const minute = minutesOfDayIST(ist);
+  return WORKDAY_BREAKS.find((b) => {
+    const startsAt = clockMinutes(b.start);
+    const endsAt = startsAt + b.minutes;
+    return minute >= startsAt && minute < endsAt;
+  }) ?? null;
+}
+
+/** Whether the given UTC timestamp falls within a break window (IST). */
+export function isBreakTime(now: number = Date.now()): boolean {
+  return breakAt(now) !== null;
+}
+
+/** Human-readable label for a break, including its time window. */
+export function breakLabel(b: WorkdayBreak): string {
+  const start = clockMinutes(b.start);
+  return `${b.label} (${clockLabel(start)}–${clockLabel(start + b.minutes)})`;
+}
+
 /**
  * Reminders whose 5-minutes-before moment is now (or was, within the grace window)
  * and that have not fired yet today.

@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import type { AppState, AppNotification, AuditEntry, Employee, Holiday, Leave, PayrollRun, Payslip, Project, SalaryStructure, Settings, ShortfallReview, Task, Team, Timesheet, WorkSession } from '../shared/types';
 import { LEARNING_PROJECT_ID, learningProject } from '../shared/domain/learning';
+import { pauseTimer } from '../shared/domain/timerMutations';
+import { isBreakTime } from '../shared/domain/workday';
 import {
   AuditModel,
   EmployeeModel,
@@ -120,7 +122,24 @@ export async function ensureLoaded(): Promise<AppState> {
     cache = await loadState();
     cache = await ensureLearningProject(cache);
   }
+  // Auto-pause any running sessions during break hours (IST).
+  cache = await autoPauseDuringBreaks(cache);
   return cache;
+}
+
+/** Pauses every Working session when the current IST time falls inside a break window.
+ *  Changes are persisted to MongoDB so the paused state survives server restarts. */
+async function autoPauseDuringBreaks(state: AppState): Promise<AppState> {
+  if (!isBreakTime(Date.now())) return state;
+  const working = state.sessions.filter((s) => s.status === 'Working');
+  if (!working.length) return state;
+  const now = Date.now();
+  let next = state;
+  for (const session of working) {
+    next = pauseTimer(next, session.id, now);
+  }
+  await persistDiff(state, next);
+  return next;
 }
 
 /**

@@ -5,6 +5,7 @@ import { indexSessions, computeDay } from './compliance';
 import { uid } from './random';
 import { fail, isoNow, withAudit, withNotification } from './stateHelpers';
 import type { Mutation } from './stateHelpers';
+import { breakAt, breakLabel, isBreakTime } from './workday';
 import { fmtDate, fromDateKey, toDateKey, todayKey } from './time';
 
 export interface StartInput {
@@ -68,6 +69,10 @@ function createSelfTask(
 export function startTimer(s: AppState, employeeId: string, input: StartInput, now: number): Mutation {
   const employee = s.employees.find((e) => e.id === employeeId);
   if (!employee) return fail('Your employee record could not be found.');
+  const b = breakAt(now);
+  if (b) {
+    return fail(`It is ${breakLabel(b)} — timers cannot be started during break hours.`);
+  }
   const project = s.projects.find((p) => p.id === input.projectId);
   if (!project) return fail('Select a project before starting the timer.');
   if (!canTrackProject(project))
@@ -121,6 +126,10 @@ export function pauseTimer(s: AppState, sessionId: string, now: number): Mutatio
 export function resumeTimer(s: AppState, sessionId: string, now: number): Mutation {
   const session = s.sessions.find((x) => x.id === sessionId);
   if (!session || session.status !== 'Paused') return fail('This session can’t be resumed.');
+  const b = breakAt(now);
+  if (b) {
+    return fail(`It is ${breakLabel(b)} — timers cannot be resumed during break hours.`);
+  }
   if (session.date !== todayKey(now))
   return fail(`This session started on ${fmtDate(session.date)}. End it or flag it for correction, then start a new session today.`);
   const other = s.sessions.find((x) => x.employeeId === session.employeeId && x.status === 'Working');
