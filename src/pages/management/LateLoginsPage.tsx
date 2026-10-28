@@ -14,8 +14,16 @@ export function LateLoginsPage() {
     .filter((r) => !empId || r.employeeId === empId)
     .filter((r) => !date || r.at.startsWith(date))
     .sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  // Late count is per month: when a date is picked, count that employee's
+  // lates for the whole month (e.g. picking Oct 23 shows all October lates).
+  // Otherwise count all lates.
+  const monthPrefix = date ? date.slice(0, 7) : '';
+  const countSource = (state.lateLoginHistory || []).filter((r) =>
+    !monthPrefix || r.at.startsWith(monthPrefix)
+  ).filter((r) => !empId || r.employeeId === empId);
   const byEmp = new Map<string, number>();
-  for (const r of rows) byEmp.set(r.employeeId, (byEmp.get(r.employeeId) ?? 0) + 1);
+  for (const r of countSource) byEmp.set(r.employeeId, (byEmp.get(r.employeeId) ?? 0) + 1);
   return (
     <div>
       <PageHeader title="Late logins" description="Employees who signed in after 10:15, with their reason." />
@@ -35,7 +43,7 @@ export function LateLoginsPage() {
       </div>
       <Panel flush>
         <Table>
-          <thead><tr><Th>Employee</Th><Th>Time</Th><Th>Reason</Th><Th align="right">Late count (filtered)</Th></tr></thead>
+          <thead><tr><Th>Employee</Th><Th>Time</Th><Th>Reason</Th><Th align="right">Late count (this month)</Th></tr></thead>
           <tbody>
             {rows.length === 0 && <tr><Td colSpan={4} className="py-8 text-center text-ink-muted">No late logins recorded.</Td></tr>}
             {rows.map((r) => (
