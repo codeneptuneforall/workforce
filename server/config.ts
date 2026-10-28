@@ -19,7 +19,7 @@ export const config = {
   port: Number(process.env.PORT ?? 4000),
   mongoUri: required('MONGODB_URI', 'mongodb://127.0.0.1:27017/workforce'),
   jwtSecret: process.env.JWT_SECRET ?? (isProduction ? '' : devSecret),
-  sessionHours: Number(process.env.SESSION_HOURS ?? 8),
+  sessionHours: Number(process.env.SESSION_HOURS ?? 12),
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS ?? 12),
   cookieName: 'wf_session',
   resetTokenTtlMinutes: Number(process.env.RESET_TOKEN_TTL_MINUTES ?? 30),

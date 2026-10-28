@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { PageHeader, Panel } from '../../components/ui/Primitives';
 import { Select } from '../../components/ui/Field';
-import { DatePicker } from '../../components/ui/DatePicker';
 import { Table, Td, Th, Tr } from '../../components/ui/Table';
 import { useData } from '../../contexts/DataContext';
 import { fmtDateTime } from '@shared/domain/time';
@@ -9,8 +8,7 @@ import { fmtDateTime } from '@shared/domain/time';
 export function LateLoginsPage() {
   const { state } = useData();
   const [empId, setEmpId] = useState('');
-  const [monthDate, setMonthDate] = useState('');
-  const month = monthDate ? monthDate.slice(0, 7) : '';
+  const [month, setMonth] = useState('');
   const rows = (state.lateLoginHistory || [])
     .filter((r) => !empId || r.employeeId === empId)
     .filter((r) => !month || r.at.startsWith(month))
@@ -30,8 +28,9 @@ export function LateLoginsPage() {
         </div>
         <div className="min-w-[180px]">
           <label className="mb-1 block text-xs font-medium text-ink-muted">Month</label>
-          <DatePicker value={monthDate || ''} onChange={(v) => setMonthDate(v)} />
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
+        {(empId || month) && <button type="button" onClick={() => { setEmpId(''); setMonth(''); }} className="self-end rounded-lg border border-line px-3 py-2 text-sm text-ink-muted hover:text-ink">Clear</button>}
       </div>
       <Panel flush>
         <Table>
@@ -52,4 +51,5 @@ export function LateLoginsPage() {
     </div>
   );
 }
+
 
