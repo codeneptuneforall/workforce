@@ -5,7 +5,7 @@ import { indexSessions, computeDay } from './compliance';
 import { uid } from './random';
 import { fail, isoNow, withAudit, withNotification } from './stateHelpers';
 import type { Mutation } from './stateHelpers';
-import { breakAt, breakLabel, isBreakTime } from './workday';
+import { breakAt, breakLabel } from './workday';
 import { fmtDate, fromDateKey, toDateKey, todayKey } from './time';
 
 export interface StartInput {

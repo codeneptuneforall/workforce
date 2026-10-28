@@ -11,7 +11,7 @@ import { cn } from '../../utils/cn';
 import type { Command } from '../../utils/commands';
 import { cmd } from '../../utils/commands';
 import { fmtClock, fmtDate, fmtMin, fmtTime, sessionActiveMs, sessionPausedMs, todayKey, MINUTE } from '@shared/domain/time';
-import { breakAt, breakLabel, isBreakTime } from '@shared/domain/workday';
+import { breakAt, breakLabel } from '@shared/domain/workday';
 import { StatusBadge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Field, Input, Select, Textarea } from '../ui/Field';

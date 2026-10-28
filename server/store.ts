@@ -134,9 +134,11 @@ async function autoPauseDuringBreaks(state: AppState): Promise<AppState> {
   const working = state.sessions.filter((s) => s.status === 'Working');
   if (!working.length) return state;
   const now = Date.now();
-  let next = state;
+  let next: AppState = state;
   for (const session of working) {
-    next = pauseTimer(next, session.id, now);
+    const result = pauseTimer(next, session.id, now);
+    if ('error' in result) continue;
+    next = result;
   }
   await persistDiff(state, next);
   return next;
