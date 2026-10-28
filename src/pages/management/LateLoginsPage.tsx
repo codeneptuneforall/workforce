@@ -3,15 +3,16 @@ import { PageHeader, Panel } from '../../components/ui/Primitives';
 import { Select } from '../../components/ui/Field';
 import { Table, Td, Th, Tr } from '../../components/ui/Table';
 import { useData } from '../../contexts/DataContext';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { fmtDateTime } from '@shared/domain/time';
 
 export function LateLoginsPage() {
   const { state } = useData();
   const [empId, setEmpId] = useState('');
-  const [month, setMonth] = useState('');
+  const [date, setDate] = useState('');
   const rows = (state.lateLoginHistory || [])
     .filter((r) => !empId || r.employeeId === empId)
-    .filter((r) => !month || r.at.startsWith(month))
+    .filter((r) => !date || r.at.startsWith(date))
     .sort((a, b) => (a.at < b.at ? 1 : -1));
   const byEmp = new Map<string, number>();
   for (const r of rows) byEmp.set(r.employeeId, (byEmp.get(r.employeeId) ?? 0) + 1);
@@ -26,11 +27,11 @@ export function LateLoginsPage() {
             {state.employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </Select>
         </div>
-        <div className="min-w-[180px]">
-          <label className="mb-1 block text-xs font-medium text-ink-muted">Month</label>
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        <div className="min-w-[200px]">
+          <label className="mb-1 block text-xs font-medium text-ink-muted">Date</label>
+          <DatePicker value={date} onChange={setDate} placeholder="Select date" />
         </div>
-        {(empId || month) && <button type="button" onClick={() => { setEmpId(''); setMonth(''); }} className="self-end rounded-lg border border-line px-3 py-2 text-sm text-ink-muted hover:text-ink">Clear</button>}
+        {(empId || date) && <button type="button" onClick={() => { setEmpId(''); setDate(''); }} className="self-end rounded-lg border border-line px-3 py-2 text-sm text-ink-muted hover:text-ink">Clear</button>}
       </div>
       <Panel flush>
         <Table>
