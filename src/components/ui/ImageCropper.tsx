@@ -1,4 +1,8 @@
-import { useRef, useState, useEffect } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
+import ReactEazyCrop from "react-easy-crop";
+import "react-easy-crop/react-easy-crop.css";
 import { XIcon, RotateCcwIcon } from "lucide-react";
 
 interface ImageCropperProps {
@@ -8,75 +12,42 @@ interface ImageCropperProps {
 }
 
 export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ clientX: 0, clientY: 0, offsetX: 0, offsetY: 0 });
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
   const [isCropping, setIsCropping] = useState(false);
 
-  const img = new Image();
-  img.src = imageUrl;
-  img.onload = () => {
-    const boxSize = 280;
-    const fit = Math.min(boxSize / img.width, boxSize / img.height);
-    const s = fit * 1.4;
-    setScale(s);
-    setOffset({ x: (boxSize - img.width * s) / 2, y: (boxSize - img.height * s) / 2 });
-  };
-
+  // Load original image to get dimensions for canvas drawing
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
   useEffect(() => {
-    if (!isDragging) return;
-    const onMove = (e: MouseEvent) => {
-      e.preventDefault();
-      const dx = e.clientX - dragStart.clientX;
-      const dy = e.clientY - dragStart.clientY;
-      setOffset({ x: dragStart.offsetX + dx, y: dragStart.offsetY + dy });
-    };
-    const onUp = () => setIsDragging(false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [isDragging, dragStart]);
+    const i = new Image();
+    i.src = imageUrl;
+    i.onload = () => setImg(i);
+  }, [imageUrl]);
 
-  const onMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-    setDragStart({ clientX: e.clientX, clientY: e.clientY, offsetX: offset.x, offsetY: offset.y });
+  const onCropChange = (location: { x: number; y: number }) => {
+    setCrop(location);
   };
 
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(scale * delta, 0.5), 6);
-    const boxSize = 280;
-    const cx = boxSize / 2;
-    const cy = boxSize / 2;
-    const relX = cx - offset.x;
-    const relY = cy - offset.y;
-    setScale(newScale);
-    setOffset({ x: cx - relX * (newScale / scale), y: cy - relY * (newScale / scale) });
+  const onZoomChange = (zoomValue: number) => {
+    setZoom(zoomValue);
   };
 
   const doCrop = () => {
-    if (!canvasRef.current || !imageRef.current) return;
+    if (!img) return;
     setIsCropping(true);
-    const canvas = canvasRef.current;
+
+    const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    if (!ctx) { setIsCropping(false); return; }
+    if (!ctx) {
+      setIsCropping(false);
+      return;
+    }
 
     const boxSize = 280;
-    const sx = -offset.x / scale;
-    const sy = -offset.y / scale;
-    const sw = boxSize / scale;
-    const sh = boxSize / scale;
+    const sx = -crop.x / zoom;
+    const sy = -crop.y / zoom;
+    const sw = boxSize / zoom;
+    const sh = boxSize / zoom;
 
     canvas.width = 400;
     canvas.height = 400;
@@ -88,11 +59,26 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
   };
 
   const doReset = () => {
+    if (!img) return;
     const boxSize = 280;
     const fit = Math.min(boxSize / img.width, boxSize / img.height);
     const s = fit * 1.4;
-    setScale(s);
-    setOffset({ x: (boxSize - img.width * s) / 2, y: (boxSize - img.height * s) / 2 });
+    setZoom(s);
+    setCrop({ x: (boxSize - img.width * s) / 2, y: (boxSize - img.height * s) / 2 });
+  };
+
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.min(Math.max(zoom * delta, 0.5), 3);
+    setZoom(newZoom);
+    // Zoom toward center of crop box
+    const boxSize = 280;
+    const cx = boxSize / 2;
+    const cy = boxSize / 2;
+    const relX = cx - crop.x;
+    const relY = cy - crop.y;
+    setCrop({ x: cx - relX * (newZoom / zoom), y: cy - relY * (newZoom / zoom) });
   };
 
   return (
@@ -106,34 +92,41 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
         </div>
 
         <div className="flex flex-col items-center gap-4">
-          <div ref={containerRef} className="relative w-[280px] h-[280px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner cursor-grab active:cursor-grabbing" onMouseDown={onMouseDown} onWheel={onWheel}>
-            <canvas ref={canvasRef} className="hidden" />
-            <img
-              ref={imageRef}
-              src={imageUrl}
-              className="absolute select-none pointer-events-none"
-              style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-                transformOrigin: "center center",
-                userSelect: "none",
-              }}
-              alt="Crop"
+          <div
+            className="relative w-[320px] h-[320px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner"
+            onWheel={onWheel}
+          >
+            <ReactEazyCrop
+              image={imageUrl}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              onCropChange={onCropChange}
+              onZoomChange={onZoomChange}
+              cropShape="round"
+              showGrid={true}
+              minZoom={0.5}
+              maxZoom={3}
+              style={{ containerStyle: { width: 320, height: 320 } }}
+              restrictPosition={true}
+              zoomWithScroll={true}
+              zoomSpeed={20}
+              keyboardStep={10}
             />
-            <div className="absolute inset-0 rounded-full border-2 border-white/60 shadow-[0_0_0_4px_rgba(255,255,255,0.9)] pointer-events-none" />
           </div>
 
           <div className="flex items-center gap-3 px-4">
             <button
               type="button"
               onClick={doReset}
-              className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50"
+              className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed"
               title="Reset"
             >
               <RotateCcwIcon className="h-4 w-4" />
             </button>
 
             <div className="flex-1 h-[2px] bg-line rounded-full">
-              <div className="h-full bg-brand-700 rounded-full" style={{ width: Math.min((scale / 6) * 100, 100) }} />
+              <div className="h-full bg-brand-700 rounded-full" style={{ width: Math.min(((zoom - 0.5) / 2.5) * 100, 100) }} />
             </div>
 
             <button
@@ -159,7 +152,7 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
               type="button"
               onClick={doCrop}
               className="px-6 py-2 rounded-lg bg-brand-700 text-white hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isCropping}
+              disabled={isCropping || !imageUrl}
             >
               {isCropping ? "Cropping..." : "Save crop"}
             </button>
