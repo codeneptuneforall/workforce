@@ -47,7 +47,17 @@ authRouter.post('/login', async (req, res) => {
   const isLate = hour > 10 || (hour === 10 && minute >= 15);
 
   // Ask for a late reason at most once per calendar day (in IST).
-  const alreadyLateToday = !!user.lateLoginAt && new Date(user.lateLoginAt).toDateString() === istNow.toDateString();
+  // Check the LateLogin collection for an existing record today using IST date
+  // boundaries expressed in UTC (MongoDB stores dates as UTC).
+  const istYear = istNow.getUTCFullYear();
+  const istMonth = istNow.getUTCMonth();
+  const istDay = istNow.getUTCDate();
+  const startOfIstDay = new Date(Date.UTC(istYear, istMonth, istDay, 0, 0, 0, 0));
+  const endOfIstDay = new Date(Date.UTC(istYear, istMonth, istDay, 23, 59, 59, 999));
+  const alreadyLateToday = await LateLoginModel.exists({
+    employeeId: user.employeeId ?? user._id,
+    at: { $gte: startOfIstDay, $lte: endOfIstDay }
+  });
 
   if (isLate && user.role === 'employee' && !alreadyLateToday) {
     if (!lateReason) {
