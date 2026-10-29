@@ -2,6 +2,7 @@
 import { CameraIcon, UploadIcon, Trash2Icon } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { BASE } from "../../api/client";
+import { ImageCropper } from "./ImageCropper";
 
 export function ProfilePictureUpload({ 
   currentPhotoUrl, 
@@ -15,6 +16,7 @@ export function ProfilePictureUpload({
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
 
   const sizes = {
     sm: "h-10 w-10",
@@ -31,14 +33,28 @@ export function ProfilePictureUpload({
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreview(reader.result as string);
+      setShowCropper(true);
     };
     reader.readAsDataURL(file);
     
+    e.target.value = "";
+  };
+
+  const handleCrop = (croppedDataUrl: string) => {
+    setPreview(croppedDataUrl);
+    setShowCropper(false);
+    uploadCroppedImage(croppedDataUrl);
+  };
+
+  const uploadCroppedImage = async (dataUrl: string) => {
     setUploading(true);
     try {
+      // Convert data URL to Blob for multipart upload (matches multer expectation)
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
       const formData = new FormData();
-      formData.append("photo", file);
-      
+      formData.append("photo", blob, "profile.jpg");
+
       const res = await fetch(`${BASE}/api/upload/profile-picture`, {
         method: "POST",
         body: formData,
@@ -59,7 +75,6 @@ export function ProfilePictureUpload({
       setPreview(null);
     } finally {
       setUploading(false);
-      e.target.value = "";
     }
   };
 
@@ -114,6 +129,13 @@ export function ProfilePictureUpload({
       </div>
       {uploading && <p className="text-xs text-ink-muted">Uploading...</p>}
       {error && <p className="text-xs text-bad">{error}</p>}
+      {showCropper && (
+        <ImageCropper
+          imageUrl={preview!}
+          onCrop={handleCrop}
+          onClose={() => setShowCropper(false)}
+        />
+      )}
     </div>
   );
 }
