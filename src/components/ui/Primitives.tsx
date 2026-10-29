@@ -1,4 +1,5 @@
 import type * as React from 'react';
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangleIcon, ArrowLeftIcon, CheckCircle2Icon, InfoIcon, XCircleIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -171,8 +172,9 @@ export function Avatar({
     md: 'h-9 w-9 text-xs',
     lg: 'h-14 w-14 text-base'
   }[size];
-  if (src && src.trim()) {
-    return <img src={src} alt={name} className={cn('inline-flex shrink-0 items-center justify-center rounded-full object-cover bg-brand-100', s, className)} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />;
+  const [broken, setBroken] = useState(false);
+  if (src && src.trim() && !broken) {
+    return <img src={src} alt={name} className={cn('inline-flex shrink-0 items-center justify-center rounded-full object-cover bg-brand-100', s, className)} onError={() => setBroken(true)} />;
   }
   return <span className={cn('inline-flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-800', s, className)} aria-hidden>{initials}</span>;
 }
