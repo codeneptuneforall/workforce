@@ -11,6 +11,9 @@ interface ImageCropperProps {
   onClose: () => void;
 }
 
+const BOX_SIZE = 280; // display size of the crop box
+const OUTPUT_SIZE = 400; // output image size
+
 export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -18,11 +21,24 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
 
-  // Load original image to get dimensions for canvas drawing
+  // Load original image and calculate initial centered crop
   useEffect(() => {
     const i = new Image();
     i.src = imageUrl;
-    i.onload = () => setImg(i);
+    i.onload = () => {
+      setImg(i);
+      // Calculate initial zoom to fit image within crop box
+      const fit = Math.min(BOX_SIZE / i.width, BOX_SIZE / i.height);
+      const initialZoom = fit * 1.2;
+      setZoom(initialZoom);
+      // Center the crop in the image
+      const scaledW = i.width * initialZoom;
+      const scaledH = i.height * initialZoom;
+      setCrop({
+        x: (scaledW - BOX_SIZE) / 2,
+        y: (scaledH - BOX_SIZE) / 2,
+      });
+    };
   }, [imageUrl]);
 
   const onCropChange = (location: { x: number; y: number }) => {
@@ -51,12 +67,12 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
       return;
     }
 
-    canvas.width = 400;
-    canvas.height = 400;
+    canvas.width = OUTPUT_SIZE;
+    canvas.height = OUTPUT_SIZE;
     ctx.drawImage(
       img,
       croppedAreaPixels.x, croppedAreaPixels.y, croppedAreaPixels.width, croppedAreaPixels.height,
-      0, 0, 400, 400
+      0, 0, OUTPUT_SIZE, OUTPUT_SIZE
     );
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     setIsCropping(false);
@@ -65,8 +81,14 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
   };
 
   const doReset = () => {
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
+    if (!img) return;
+    const fit = Math.min(BOX_SIZE / img.width, BOX_SIZE / img.height);
+    const s = fit * 1.2;
+    setZoom(s);
+    setCrop({
+      x: (img.width * s - BOX_SIZE) / 2,
+      y: (img.height * s - BOX_SIZE) / 2,
+    });
   };
 
   return (
@@ -80,6 +102,7 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
         </div>
 
         <div className="flex flex-col items-center gap-4">
+          {/* Crop preview */}
           <div className="relative w-[320px] h-[320px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner">
             <ReactEazyCrop
               image={imageUrl}
@@ -90,17 +113,20 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
               onZoomChange={onZoomChange}
               onCropComplete={onCropComplete}
               cropShape="round"
-              showGrid={true}
+              showGrid={false}
               minZoom={0.5}
-              maxZoom={3}
+              maxZoom={4}
               style={{ containerStyle: { width: 320, height: 320 } }}
               restrictPosition={true}
               zoomWithScroll={true}
               zoomSpeed={20}
               keyboardStep={10}
             />
+            {/* Round mask overlay */}
+            <div className="absolute inset-0 rounded-full border-2 border-white/70 shadow-[0_0_0_3px_rgba(255,255,255,0.9)] pointer-events-none" />
           </div>
 
+          {/* Controls */}
           <div className="flex items-center gap-3 px-4">
             <button
               type="button"
@@ -112,8 +138,17 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
             </button>
 
             <div className="flex-1 h-[2px] bg-line rounded-full">
-              <div className="h-full bg-brand-700 rounded-full" style={{ width: Math.min(((zoom - 0.5) / 2.5) * 100, 100) }} />
+              <div className="h-full bg-brand-700 rounded-full" style={{ width: Math.min(((zoom - 0.5) / 3.5) * 100, 100) }} />
             </div>
+
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); setZoom((z) => Math.min(z + 0.2, 3)); }}
+              className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Zoom in"
+            >
+              <span className="h-4 w-4">+</span>
+            </button>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-line">
