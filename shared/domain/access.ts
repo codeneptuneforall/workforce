@@ -8,11 +8,9 @@ import type { AppState, AuthUser, Employee, Project, Role, Task } from '../types
  * management users who are allowed to run payroll.
  */
 
-/** Management sees everything except other people's raw bank account numbers. */
-const maskBankDetails = <T extends {bankName: string;accountNumber: string;}>(ss: T): T => ({
-  ...ss,
-  accountNumber: ss.accountNumber ? `XXXX XXXX ${ss.accountNumber.slice(-4)}` : ''
-});
+/** Management sees everything. Salary structures no longer carry raw account numbers
+ *  (bank details live on the employee record), so nothing to mask here. */
+const maskBankDetails = <T>(ss: T): T => ss;
 
 export function projectState(state: AppState, user: AuthUser): AppState {
   if (user.role === 'management') {

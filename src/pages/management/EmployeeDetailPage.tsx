@@ -158,7 +158,8 @@ function EmployeeDetail({ emp }: {emp: Employee;}) {
             <KeyValue label="Beneficiary name" value={emp.beneficiaryName ?? '—'} />
             <KeyValue label="Bank name" value={emp.bankName ?? '—'} />
             <KeyValue label="Account number" value={emp.bankAccountNumber ? maskAccount(emp.bankAccountNumber) : '—'} />
-            <KeyValue label="IFSC" value={emp.ifscCode ?? '—'} />
+            <KeyValue label="IFSC code" value={emp.ifscCode ?? '—'} />
+            <KeyValue label="Branch name" value={emp.branchName ?? '—'} />
           </dl>
           <p className="mt-4 text-xs text-ink-muted">Edit these from the employee form. They flow into payslip PDFs via the salary structure.</p>
         </Panel>
@@ -170,7 +171,7 @@ function EmployeeDetail({ emp }: {emp: Employee;}) {
               <KeyValue label="Effective from" value={ss.effectiveFrom ? fmtDate(ss.effectiveFrom) : 'Not provided'} />
               <KeyValue label="CTC (annual)" value={fmtINR(ss.ctcAnnual)} />
               <KeyValue label="Monthly gross" value={fmtINR(grossOf(ss))} />
-              <KeyValue label="Bank" value={ss.bankName ? `${ss.bankName} · ${maskAccount(ss.accountNumber)}` : <span className="text-bad">Missing</span>} />
+              <KeyValue label="Bank" value={emp.bankAccountNumber ? `${emp.bankName} · ${maskAccount(emp.bankAccountNumber)}` : <span className="text-bad">Missing</span>} />
             </dl>
         }
         </Panel>

@@ -32,8 +32,13 @@ body {
 }
 @media print {
   @page {
-    size: A4;
-    margin: 12mm;
+    size: A4 portrait;
+    margin: 8mm;
+  }
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
   * {
     overflow: visible !important;
@@ -47,11 +52,31 @@ body {
     visibility: visible;
   }
   .print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 auto !important;
     box-shadow: none !important;
     border: none !important;
+    background: white !important;
+    break-inside: avoid;
+    box-sizing: border-box !important;
+  }
+  .print-area p,
+  .print-area h2,
+  .print-area dl,
+  .print-area table,
+  .print-area footer {
+    margin-bottom: inherit !important;
+  }
+  .print-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    break-inside: auto;
+  }
+  .print-area tr {
+    break-inside: avoid;
   }
 }

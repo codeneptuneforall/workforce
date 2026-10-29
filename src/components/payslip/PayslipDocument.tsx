@@ -30,7 +30,7 @@ export function PayslipDocument({ data, version, watermark }: Props) {
 
 
   return (
-    <article className="print-area relative mx-auto w-full max-w-[794px] bg-white p-6 text-[12px] leading-relaxed text-ink sm:p-10" aria-label={`Payslip ${monthLabel(data.month)}`}>
+    <article className="print-area relative w-full bg-white p-6 text-[12px] leading-relaxed text-ink sm:p-10" aria-label={`Payslip ${monthLabel(data.month)}`}>
       {watermark &&
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
           <span className="-rotate-12 text-6xl font-bold uppercase tracking-widest text-ink/5">{watermark}</span>

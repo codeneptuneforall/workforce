@@ -349,7 +349,7 @@ export function buildInitialState(now: number = Date.now()): AppState {
     for (const emp of employees) {
       const base = salaryStructures.find((s) => s.employeeId === emp.id);
       if (!base) continue;
-      const ss = base.accountNumber ? base : { ...base, bankName: 'Sample Bank', accountNumber: '000077779999' };
+      const ss = base;
       const lines = linesFromStructure(ss, 0, 0);
       const rec: PayrollRecord = {
         employee: emp, structure: ss, month: m, salaryDays: monthDates(m).length, lopDays: 0, lopAmount: 0, scheduledDays: 0,

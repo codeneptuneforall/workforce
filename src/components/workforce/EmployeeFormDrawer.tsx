@@ -116,6 +116,18 @@ export function EmployeeFormDrawer({ employee, onClose, onSaved }: {employee: Em
             <p className="mt-2 text-xs text-ink-muted">Saturdays follow the company policy in Settings (currently the 1st and 3rd Saturday of the month).</p>
           </fieldset>
         </section>
+
+        <section className="border-t border-line pt-5">
+          <h3 className="mb-3 text-sm font-semibold">Bank details</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Beneficiary name (account name)" hint="Name as per bank account.">{(id) => <Input id={id} value={f.beneficiaryName ?? ''} onChange={(e) => set({ beneficiaryName: e.target.value })} />}</Field>
+            <Field label="Bank name" hint="e.g. HDFC Bank, SBI, ICICI.">{(id) => <Input id={id} value={f.bankName ?? ''} onChange={(e) => set({ bankName: e.target.value })} />}</Field>
+            <Field label="Account number" hint="Bank account number.">{(id) => <Input id={id} value={f.bankAccountNumber ?? ''} onChange={(e) => set({ bankAccountNumber: e.target.value.replace(/\s/g, '') })} className="tnum" />}</Field>
+            <Field label="IFSC code" hint="11-character IFSC code.">{(id) => <Input id={id} value={f.ifscCode ?? ''} onChange={(e) => set({ ifscCode: e.target.value.toUpperCase() })} className="tnum" placeholder="HDFC0001234" />}</Field>
+            <Field label="Branch name" hint="Branch where the account is held.">{(id) => <Input id={id} value={f.branchName ?? ''} onChange={(e) => set({ branchName: e.target.value })} />}</Field>
+          </div>
+          <p className="mt-2 text-xs text-ink-muted">These details are shown on the employee's profile and payroll bank tab. Account number is masked when displayed.</p>
+        </section>
         {isNew && <Banner tone="info">A sign-in account is created for this employee with a generated temporary password. Copy it from the dialog shown right after you save — it is never displayed again.</Banner>}
         {error && <Banner tone="bad" title="Not saved">{error}</Banner>}
       </div>

@@ -58,6 +58,7 @@ export function MyProfilePage() {
               <KeyValue label="Bank name" value={emp.bankName ?? 'Not provided'} />
               <KeyValue label="Account number" value={emp.bankAccountNumber ?? 'Not provided'} />
               <KeyValue label="IFSC code" value={emp.ifscCode ?? 'Not provided'} />
+              <KeyValue label="Branch name" value={emp.branchName ?? 'Not provided'} />
               <KeyValue label="Beneficiary name" value={emp.beneficiaryName ?? 'Not provided'} />
             </dl>
           </Panel>

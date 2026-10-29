@@ -259,8 +259,8 @@ export function buildPayslipData(rec: PayrollRecord, settings: Settings): Paysli
       code: rec.employee.code,
       designation: rec.employee.designation,
       joiningDate: rec.employee.joiningDate,
-      bankName: ss.bankName,
-      accountMasked: maskAccount(ss.accountNumber),
+      bankName: rec.employee.bankName ?? '',
+      accountMasked: maskAccount(rec.employee.bankAccountNumber ?? ''),
       uan: ss.uan,
       esi: ss.esiNumber
     },
@@ -278,9 +278,9 @@ export function buildPayslipData(rec: PayrollRecord, settings: Settings): Paysli
   };
 }
 
-export function payslipBlocker(ss: SalaryStructure | undefined): string | null {
-  if (!ss) return 'No salary structure.';
-  if (!ss.bankName || !ss.accountNumber) return 'Bank details are missing from the salary structure.';
+export function payslipBlocker(emp: {bankName?: string; bankAccountNumber?: string;} | undefined): string | null {
+  if (!emp) return 'No employee record.';
+  if (!emp.bankName || !emp.bankAccountNumber) return 'Bank details are missing from the employee record.';
   return null;
 }
 

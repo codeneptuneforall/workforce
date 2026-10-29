@@ -40,6 +40,7 @@ export interface Employee {
   bankName?: string;
   bankAccountNumber?: string;
   ifscCode?: string;
+  branchName?: string;
   managerId?: string;
   status: EmployeeStatus;
   schedule: string;
@@ -223,8 +224,6 @@ export interface SalaryStructure {
   employeeId: string;
   effectiveFrom: string;
   ctcAnnual: number;
-  bankName: string;
-  accountNumber: string;
   uan?: string;
   esiNumber?: string;
   dailyPayableAmount?: number | null;

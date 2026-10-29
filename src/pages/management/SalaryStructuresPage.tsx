@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { EyeIcon, EyeOffIcon, LockIcon } from 'lucide-react';
+import { LockIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Field, Input, Textarea } from '../../components/ui/Field';
 import { DatePicker } from '../../components/ui/DatePicker';
@@ -20,7 +20,7 @@ const earningFields: [keyof SalaryStructure['earnings'], string][] = [['basic', 
 const deductionFields: [keyof SalaryStructure['deductions'], string][] = [['epf', 'EPF'], ['esi', 'ESI'], ['professionalTax', 'Professional Tax'], ['insurance', 'Insurance'], ['tds', 'TDS'], ['other', 'Other approved deductions']];
 
 const blank = (employeeId: string): SalaryStructure => ({
-  employeeId, effectiveFrom: todayKey(), ctcAnnual: 0, bankName: '', accountNumber: '', uan: '', esiNumber: '', dailyPayableAmount: null,
+  employeeId, effectiveFrom: todayKey(), ctcAnnual: 0, uan: '', esiNumber: '', dailyPayableAmount: null,
   earnings: { basic: 0, hra: 0, conveyance: 0, otherAllowances: 0, incentives: 0 },
   deductions: { epf: 0, esi: 0, professionalTax: 0, insurance: 0, tds: 0, other: 0 }, employerContribution: 0
 });
@@ -48,7 +48,7 @@ export function SalaryStructuresPage() {
                   <Td align="right">{ss ? fmtINR(ss.ctcAnnual) : '—'}</Td>
                   <Td align="right">{ss ? fmtINR(grossOf(ss)) : '—'}</Td>
                   <Td align="right">{ss ? fmtINR(Object.values(ss.deductions).reduce((a, b) => a + b, 0)) : '—'}</Td>
-                  <Td className="whitespace-nowrap text-xs">{ss?.accountNumber ? <span className="text-ink-muted">{ss.bankName} · {maskAccount(ss.accountNumber)}</span> : e.bankAccountNumber ? <span className="text-ink-muted">{e.bankName} · {maskAccount(e.bankAccountNumber)}</span> : <span className="font-medium text-bad">Missing</span>}</Td>
+                  <Td className="whitespace-nowrap text-xs">{e.bankAccountNumber ? <span className="text-ink-muted">{e.bankName} · {maskAccount(e.bankAccountNumber)}</span> : <span className="font-medium text-bad">Missing</span>}</Td>
                 </Tr>);
 
             })}
@@ -64,14 +64,13 @@ function SalaryDrawer({ employee, onClose }: {employee: Employee | null;onClose:
   const { state } = useData();
   const { mutate, pending, error, setError } = useMutation();
   const [f, setF] = useState<SalaryStructure | null>(null);
-  const [reveal, setReveal] = useState(false);
   const [reason, setReason] = useState('');
   const [touched, setTouched] = useState(false);
   useEffect(() => {
     if (!employee) return;
     const ss = state.salary.find((s) => s.employeeId === employee.id);
-    setF(ss ? { ...ss, earnings: { ...ss.earnings }, deductions: { ...ss.deductions } } : { ...blank(employee.id), bankName: employee.bankName ?? '', accountNumber: employee.bankAccountNumber ?? '', effectiveFrom: employee.joiningDate || todayKey() });
-    setReveal(false);setReason('');setTouched(false);setError(null);
+    setF(ss ? { ...ss, earnings: { ...ss.earnings }, deductions: { ...ss.deductions } } : { ...blank(employee.id), effectiveFrom: employee.joiningDate || todayKey() });
+    setReason('');setTouched(false);setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.id]);
   if (!employee || !f) return <Drawer open={false} onClose={onClose} title=""><div /></Drawer>;
@@ -98,19 +97,10 @@ function SalaryDrawer({ employee, onClose }: {employee: Employee | null;onClose:
         <section>
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><LockIcon className="h-3.5 w-3.5" /> Bank & statutory details</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Bank name">{(id) => <Input id={id} value={f.bankName} onChange={(e) => setF({ ...f, bankName: e.target.value })} />}</Field>
-            <Field label="Account number" hint={reveal ? 'Visible — hide when done.' : 'Masked for privacy.'}>
-              {(id) =>
-              <div className="relative">
-                  <Input id={id} value={reveal ? f.accountNumber : f.accountNumber ? maskAccount(f.accountNumber) : ''} readOnly={!reveal} onChange={(e) => setF({ ...f, accountNumber: e.target.value.replace(/\s/g, '') })} className="pr-10 tnum" placeholder="Not provided" />
-                  <button type="button" onClick={() => setReveal((r) => !r)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-ink-muted hover:text-ink" aria-label={reveal ? 'Hide account number' : 'Reveal account number'}>{reveal ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}</button>
-                </div>
-              }
-            </Field>
             <Field label="EPF / UAN" hint="If applicable">{(id) => <Input id={id} value={f.uan ?? ''} onChange={(e) => setF({ ...f, uan: e.target.value })} />}</Field>
             <Field label="ESI number" hint="If applicable">{(id) => <Input id={id} value={f.esiNumber ?? ''} onChange={(e) => setF({ ...f, esiNumber: e.target.value })} />}</Field>
           </div>
-          {!f.accountNumber && <Banner tone="warn" className="mt-3">Payslips can’t be generated without bank details.</Banner>}
+          {!employee?.bankAccountNumber && <Banner tone="warn" className="mt-3">Payslips can’t be generated without bank details. Add them on the employee’s edit form.</Banner>}
         </section>
         <section className="grid gap-6 md:grid-cols-2">
           <div className="space-y-3">

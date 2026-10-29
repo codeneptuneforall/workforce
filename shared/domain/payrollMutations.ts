@@ -55,7 +55,7 @@ export function generatePayslips(s: AppState, month: string, records: PayrollRec
   const failed: string[] = [];
   const created: Payslip[] = [];
   for (const rec of target) {
-    const blocker = payslipBlocker(rec.structure);
+    const blocker = payslipBlocker(rec.employee);
     if (blocker) {
       failed.push(rec.employee.id);
       continue;
@@ -108,7 +108,7 @@ export function revisePayslip(s: AppState, payslipId: string, reason: string, re
   if (!reason.trim()) return fail('A revision reason is required.');
   if (s.payslips.some((p) => p.employeeId === original.employeeId && p.month === original.month && p.status === 'Generated'))
   return fail('A revised version is already waiting for release.');
-  const blocker = payslipBlocker(record.structure);
+  const blocker = payslipBlocker(record.employee);
   if (blocker) return fail(`Payslip generation failed: ${blocker}`);
   const versions = s.payslips.filter((p) => p.employeeId === original.employeeId && p.month === original.month).length;
   const revised: Payslip = {
