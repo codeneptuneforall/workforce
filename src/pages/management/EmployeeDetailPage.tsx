@@ -84,7 +84,7 @@ function EmployeeDetail({ emp }: {emp: Employee;}) {
       {tab === 'overview' &&
       <div className="grid gap-6 lg:grid-cols-3">
           <Panel title="Details" className="lg:col-span-2">
-            <div className="mb-5 flex items-center gap-4"><Avatar name={emp.name} size="lg" /><div><p className="font-semibold">{emp.name}</p><p className="text-sm text-ink-muted">{emp.email}</p></div></div>
+            <div className="mb-5 flex items-center gap-4"><Avatar name={emp.name} size="lg" src={emp.photoUrl} /><div><p className="font-semibold">{emp.name}</p><p className="text-sm text-ink-muted">{emp.email}</p></div></div>
             <dl className="grid gap-5 sm:grid-cols-3">
               <KeyValue label="Phone" value={emp.phone ?? '—'} />
               <KeyValue label="Joining date" value={emp.joiningDate ? fmtDate(emp.joiningDate) : 'Not provided'} />
