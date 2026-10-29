@@ -43,9 +43,13 @@ export function ProfilePictureUpload({
         body: formData,
         credentials: "include"
       });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+
+      const text = await res.text();
+      let data: any = {};
+      if (text) {
+        try { data = JSON.parse(text); } catch { data = {}; }
+      }
+      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
       
       onUpload(data.url);
       setPreview(null);

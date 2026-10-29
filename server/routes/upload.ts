@@ -32,13 +32,22 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } 
 });
 
-router.post("/profile-picture", upload.single("photo"), (req: any, res) => {
+router.post("/profile-picture", upload.single("photo"), async (req: any, res: any) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     const url = `/uploads/profiles/${req.file.filename}`;
     res.json({ url });
   } catch (e: any) {
-    res.status(400).json({ error: e.message || "Upload failed" });
+    if (!res.headersSent) {
+      res.status(400).json({ error: e.message || "Upload failed" });
+    }
+  }
+});
+
+// Handle Multer errors (e.g. file too large, unexpected field)
+router.use((err: any, _req: any, res: any, _next: any) => {
+  if (!res.headersSent) {
+    res.status(400).json({ error: err.message || "Upload failed" });
   }
 });
 

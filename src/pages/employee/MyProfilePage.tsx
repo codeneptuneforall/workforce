@@ -2,7 +2,7 @@ import { LogOutIcon } from 'lucide-react';
 import { ChangePasswordForm } from '../../components/auth/ChangePasswordForm';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Avatar, KeyValue, PageHeader, Panel } from '../../components/ui/Primitives';
+import { Avatar, KeyValue, PageHeader, Panel, Banner } from '../../components/ui/Primitives';
 import { ProfilePictureUpload } from '../../components/ui/ProfilePictureUpload';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
@@ -16,18 +16,20 @@ export function MyProfilePage() {
   const emp = useCurrentEmployee();
   const { state, team, personName } = useData();
   const { logout } = useAuth();
-  const { mutate } = useMutation();
+  const { mutate, error } = useMutation();
 
   const handlePhotoUpload = async (url: string) => {
     if (!emp) return;
     const updated = { ...emp, photoUrl: url };
-    await mutate(cmd.saveEmployee(updated), 'Profile picture updated');
+    const ok = await mutate(cmd.saveEmployee(updated), 'Profile picture updated');
+    if (!ok) return; // Don't reload if save failed — error is shown by DataContext
     window.location.reload();
   };
 
   return (
     <div>
       <PageHeader title="My Profile" description="Update your profile picture. Contact HR to change other personal or employment details." />
+      {error && <Banner tone="bad">{error}</Banner>}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Panel title="Personal Information">
