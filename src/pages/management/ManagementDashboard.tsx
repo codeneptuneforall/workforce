@@ -136,7 +136,7 @@ export function ManagementDashboard() {
               const e = active.find((x) => x.id === d.employeeId)!;
               return (
                 <Tr key={d.employeeId} onClick={() => setDetail(d)}>
-                  <Td><div className="flex items-center gap-3"><Avatar name={e.name} size="sm" /><div><p className="font-medium">{e.name}</p><p className="text-xs text-ink-muted">{e.designation}</p></div></div></Td>
+                  <Td><div className="flex items-center gap-3"><Avatar name={e.name} size="sm" src={e.photoUrl} /><div><p className="font-medium">{e.name}</p><p className="text-xs text-ink-muted">{e.designation}</p></div></div></Td>
                   <Td className="whitespace-nowrap text-ink-muted">{team(e.teamId)?.name}</Td>
                   <Td align="right">{fmtMin(d.expectedMin)}</Td>
                   <Td align="right" className="font-medium">{fmtMin(d.completedMin)}</Td>

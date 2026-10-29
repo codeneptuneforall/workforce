@@ -51,7 +51,7 @@ export function EmployeesPage() {
               const d = computeDay(ctx, e, today, now);
               return (
                 <Tr key={e.id} onClick={() => navigate(`/management/employees/${e.id}`)}>
-                    <Td><div className="flex items-center gap-3"><Avatar name={e.name} size="sm" /><div><p className="font-medium">{e.name}</p><p className="text-xs text-ink-muted">{e.code} · {e.email}</p></div></div></Td>
+                    <Td><div className="flex items-center gap-3"><Avatar name={e.name} size="sm" src={e.photoUrl} /><div><p className="font-medium">{e.name}</p><p className="text-xs text-ink-muted">{e.code} · {e.email}</p></div></div></Td>
                     <Td>{e.designation}</Td>
                     <Td className="whitespace-nowrap text-ink-muted">{team(e.teamId)?.name}</Td>
                     <Td>{e.status === 'Active' ? <span className="flex items-center gap-2"><StatusBadge status={d.status} /><span className="text-xs text-ink-muted tnum">{fmtMin(d.completedMin)}</span></span> : <span className="text-ink-muted">—</span>}</Td>

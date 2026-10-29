@@ -4,7 +4,7 @@ import { SessionsTable } from '../../components/shared/SessionsTable';
 import { WeekBars } from '../../components/shared/WeekBars';
 import { DailyTargetCard } from '../../components/time/DailyTargetCard';
 import { StatusBadge } from '../../components/ui/Badge';
-import { EmptyState, PageHeader, Panel } from '../../components/ui/Primitives';
+import { EmptyState, PageHeader, Panel, Avatar } from '../../components/ui/Primitives';
 import { useData } from '../../contexts/DataContext';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { useNow } from '../../hooks/useNow';
@@ -44,6 +44,16 @@ export function EmployeeDashboard() {
       <PageHeader title={`${greeting(now)}, ${emp.name.split(' ')[0]}`} description={`${emp.designation} · ${emp.schedule}`} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          <div className="flex items-end justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Avatar name={emp.name} size="lg" src={emp.photoUrl} />
+              <div>
+                <p className="text-lg font-semibold">{emp.name}</p>
+                <p className="text-xs text-ink-muted">{emp.designation} · {emp.code}</p>
+              </div>
+            </div>
+            <StatusBadge status={attendanceStatus(todayDay, state.settings)} />
+          </div>
           <DailyTargetCard employee={emp} />
           <Panel title="Today’s work log" actions={<Link to="/employee/work-logs" className="text-sm font-medium text-brand-700">All logs</Link>} flush>
             <SessionsTable sessions={todaySessions} emptyTitle="Nothing logged yet today" emptyBody="Start the timer above when you begin working." />
