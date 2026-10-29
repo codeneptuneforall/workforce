@@ -20,6 +20,8 @@ export interface AccountSummary {
 
 const BASE = (import.meta.env?.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
+export { BASE };
+
 export class ApiError extends Error {
   status: number;
   code?: string;

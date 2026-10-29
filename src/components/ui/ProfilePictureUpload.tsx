@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import { CameraIcon, UploadIcon } from "lucide-react";
 import { cn } from "../../utils/cn";
+import { BASE } from "../../api/client";
 
 export function ProfilePictureUpload({ 
   currentPhotoUrl, 
@@ -38,7 +39,7 @@ export function ProfilePictureUpload({
       const formData = new FormData();
       formData.append("photo", file);
       
-      const res = await fetch("/api/upload/profile-picture", {
+      const res = await fetch(`${BASE}/api/upload/profile-picture`, {
         method: "POST",
         body: formData,
         credentials: "include"
