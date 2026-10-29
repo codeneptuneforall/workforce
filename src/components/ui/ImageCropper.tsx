@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { XIcon, RotateCcwIcon } from "lucide-react";
 
 interface ImageCropperProps {
@@ -12,98 +12,92 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [startScale, setStartScale] = useState(1);
+  const [dragStart, setDragStart] = useState({ clientX: 0, clientY: 0, offsetX: 0, offsetY: 0 });
   const [isCropping, setIsCropping] = useState(false);
 
   const img = new Image();
   img.src = imageUrl;
   img.onload = () => {
     const boxSize = 280;
-    const scaleToFit = Math.min(boxSize / img.width, boxSize / img.height);
-    const initialScale = scaleToFit * 1.5;
-    setScale(initialScale);
-    const offsetX = (boxSize - img.width * initialScale) / 2;
-    const offsetY = (boxSize - img.height * initialScale) / 2;
-    setPosition({ x: offsetX, y: offsetY });
+    const fit = Math.min(boxSize / img.width, boxSize / img.height);
+    const s = fit * 1.4;
+    setScale(s);
+    setOffset({ x: (boxSize - img.width * s) / 2, y: (boxSize - img.height * s) / 2 });
   };
 
-  const handleImageMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-    setStartPos({ x: e.clientX - position.x, y: e.clientY - position.y });
-    setStartScale(scale);
-  };
-
-  const handleWindowMouseMove = (e: React.MouseEvent) => {
+  useEffect(() => {
     if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault();
+      const dx = e.clientX - dragStart.clientX;
+      const dy = e.clientY - dragStart.clientY;
+      setOffset({ x: dragStart.offsetX + dx, y: dragStart.offsetY + dy });
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging, dragStart]);
+
+  const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    setPosition({ x: e.clientX - startPos.x, y: e.clientY - startPos.y });
+    e.stopPropagation();
+    setIsDragging(true);
+    setDragStart({ clientX: e.clientX, clientY: e.clientY, offsetX: offset.x, offsetY: offset.y });
   };
 
-  const handleWindowMouseUp = () => setIsDragging(false);
-
-  const handleWheel = (e: React.WheelEvent) => {
+  const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(startScale * delta, 1), 5);
-    setScale(newScale);
+    const newScale = Math.min(Math.max(scale * delta, 0.5), 6);
     const boxSize = 280;
-    const centerX = boxSize / 2;
-    const centerY = boxSize / 2;
-    const prevPos = { x: position.x, y: position.y };
-    const newPosX = centerX - (centerX - prevPos.x) * (newScale / startScale);
-    const newPosY = centerY - (centerY - prevPos.y) * (newScale / startScale);
-    setPosition({ x: newPosX, y: newPosY });
-    setStartScale(newScale);
+    const cx = boxSize / 2;
+    const cy = boxSize / 2;
+    const relX = cx - offset.x;
+    const relY = cy - offset.y;
+    setScale(newScale);
+    setOffset({ x: cx - relX * (newScale / scale), y: cy - relY * (newScale / scale) });
   };
 
-  const handleCrop = () => {
+  const doCrop = () => {
     if (!canvasRef.current || !imageRef.current) return;
     setIsCropping(true);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      setIsCropping(false);
-      return;
-    }
+    if (!ctx) { setIsCropping(false); return; }
 
     const boxSize = 280;
-    const sourceX = -position.x / scale;
-    const sourceY = -position.y / scale;
-    const sourceW = boxSize / scale;
-    const sourceH = boxSize / scale;
+    const sx = -offset.x / scale;
+    const sy = -offset.y / scale;
+    const sw = boxSize / scale;
+    const sh = boxSize / scale;
 
     canvas.width = 400;
     canvas.height = 400;
-    ctx.drawImage(
-      imageRef.current,
-      sourceX, sourceY, sourceW, sourceH,
-      0, 0, 400, 400
-    );
-
-    const croppedDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 400, 400);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     setIsCropping(false);
-    onCrop(croppedDataUrl);
+    onCrop(dataUrl);
     onClose();
   };
 
-  const handleReset = () => {
+  const doReset = () => {
     const boxSize = 280;
-    const scaleToFit = Math.min(boxSize / (img.width || boxSize), boxSize / (img.height || boxSize));
-    const initialScale = scaleToFit * 1.5;
-    setScale(initialScale);
-    const offsetX = (boxSize - (img.width || boxSize) * initialScale) / 2;
-    const offsetY = (boxSize - (img.height || boxSize) * initialScale) / 2;
-    setPosition({ x: offsetX, y: offsetY });
+    const fit = Math.min(boxSize / img.width, boxSize / img.height);
+    const s = fit * 1.4;
+    setScale(s);
+    setOffset({ x: (boxSize - img.width * s) / 2, y: (boxSize - img.height * s) / 2 });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-[640px] p-6 bg-white rounded-2xl shadow-2xl z-10">
+      <div className="relative w-full max-w-[640px] p-6 bg-white rounded-2xl shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-ink">Crop profile picture</h3>
           <button type="button" onClick={onClose} className="text-ink-muted hover:text-ink">
@@ -112,23 +106,17 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
         </div>
 
         <div className="flex flex-col items-center gap-4">
-          <div
-            ref={containerRef}
-            className="relative w-[280px] h-[280px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner"
-            onWheel={handleWheel}
-          >
+          <div ref={containerRef} className="relative w-[280px] h-[280px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner cursor-grab active:cursor-grabbing" onMouseDown={onMouseDown} onWheel={onWheel}>
             <canvas ref={canvasRef} className="hidden" />
             <img
               ref={imageRef}
               src={imageUrl}
-              className="absolute select-none cursor-grab active:cursor-grabbing"
+              className="absolute select-none pointer-events-none"
               style={{
-                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
                 transformOrigin: "center center",
                 userSelect: "none",
               }}
-              onMouseDown={handleImageMouseDown}
-              onDragStart={(e) => e.preventDefault()}
               alt="Crop"
             />
             <div className="absolute inset-0 rounded-full border-2 border-white/60 shadow-[0_0_0_4px_rgba(255,255,255,0.9)] pointer-events-none" />
@@ -137,24 +125,21 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
           <div className="flex items-center gap-3 px-4">
             <button
               type="button"
-              onClick={handleReset}
-              className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={doReset}
+              className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50"
               title="Reset"
             >
               <RotateCcwIcon className="h-4 w-4" />
             </button>
 
             <div className="flex-1 h-[2px] bg-line rounded-full">
-              <div
-                className="h-full bg-brand-700 rounded-full transition-all"
-                style={{ width: Math.min((scale / 5) * 100, 100) }}
-              />
+              <div className="h-full bg-brand-700 rounded-full" style={{ width: Math.min((scale / 6) * 100, 100) }} />
             </div>
 
             <button
               type="button"
-              onClick={(e) => { e.preventDefault(); handleWheel(e as unknown as React.WheelEvent); }}
-              className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={(e) => { e.preventDefault(); onWheel(e as unknown as React.WheelEvent); }}
+              className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50"
               title="Zoom in"
             >
               <span className="h-4 w-4">+</span>
@@ -172,7 +157,7 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
             </button>
             <button
               type="button"
-              onClick={handleCrop}
+              onClick={doCrop}
               className="px-6 py-2 rounded-lg bg-brand-700 text-white hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isCropping}
             >
@@ -181,8 +166,6 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
           </div>
         </div>
       </div>
-
-      <div className="absolute inset-0" onMouseMove={(e) => handleWindowMouseMove(e)} onMouseUp={handleWindowMouseUp} onMouseLeave={handleWindowMouseUp} />
     </div>
   );
 }
