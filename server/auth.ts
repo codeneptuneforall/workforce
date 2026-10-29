@@ -18,6 +18,7 @@ export interface UserDocument {
   mustChangePassword: boolean;
   active: boolean;
   passwordChangedAt?: Date;
+  lastLoginAt?: Date;
   lateLoginReason?: string;
   lateLoginAt?: Date;
 }
