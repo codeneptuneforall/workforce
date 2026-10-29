@@ -67,8 +67,16 @@ export interface CommandDefinition {
 const commands: Record<string, CommandDefinition> = {
   /* ---------------------------------------------------------------- employees */
   'employee.save': {
-    scope: 'management',
-    handler: (ctx, args) => saveEmployee(ctx.state, args.employee, ctx.actor, ctx.now)
+    scope: 'employee',
+    handler: (ctx, args) => {
+      // An employee may only save their own record; management may save any record.
+      if (!isManager(ctx.user)) {
+        const empId = ctx.user.employeeId;
+        if (!empId || args.employee.id !== empId)
+          return fail('You can only save your own profile.');
+      }
+      return saveEmployee(ctx.state, args.employee, ctx.actor, ctx.now);
+    }
   },
   'employee.setStatus': {
     scope: 'management',
