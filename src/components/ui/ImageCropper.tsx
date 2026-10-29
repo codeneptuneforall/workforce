@@ -104,7 +104,14 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-[640px] p-6 bg-white rounded-2xl shadow-2xl">
+      {/* Drag overlay behind modal content so clicks on buttons work */}
+      <div
+        className="absolute inset-0"
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      />
+      <div className="relative w-full max-w-[640px] p-6 bg-white rounded-2xl shadow-2xl z-10">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-ink">Crop profile picture</h3>
           <button type="button" onClick={onClose} className="text-ink-muted hover:text-ink">
@@ -113,7 +120,7 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
         </div>
 
         <div className="flex flex-col items-center gap-4">
-          <div className="relative w-[280px] h-[280px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner">
+          <div ref={containerRef} className="relative w-[280px] h-[280px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner">
             <canvas ref={canvasRef} className="hidden" />
             <img
               ref={imageRef}
@@ -180,8 +187,6 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
           </div>
         </div>
       </div>
-
-      <div className="absolute inset-0" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />
     </div>
   );
 }
