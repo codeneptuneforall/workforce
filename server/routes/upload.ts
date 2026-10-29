@@ -35,7 +35,8 @@ const upload = multer({
 router.post("/profile-picture", upload.single("photo"), async (req: any, res: any) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    const url = `/uploads/profiles/${req.file.filename}`;
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const url = `${baseUrl}/uploads/profiles/${req.file.filename}`;
     res.json({ url });
   } catch (e: any) {
     if (!res.headersSent) {

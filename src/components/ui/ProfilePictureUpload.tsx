@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { CameraIcon, UploadIcon } from "lucide-react";
+import { CameraIcon, UploadIcon, Trash2Icon } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { BASE } from "../../api/client";
 
@@ -10,7 +10,7 @@ export function ProfilePictureUpload({
 }: { 
   currentPhotoUrl?: string | null; 
   onUpload: (url: string) => void; 
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg"; 
 }) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -63,6 +63,10 @@ export function ProfilePictureUpload({
     }
   };
 
+  const handleRemove = () => {
+    onUpload("");
+  };
+
   const photoUrl = preview || currentPhotoUrl;
 
   return (
@@ -77,21 +81,36 @@ export function ProfilePictureUpload({
             </div>
           )}
         </div>
-        <label 
-          className={cn(
-            "absolute bottom-0 right-0 rounded-full bg-brand-600 p-1.5 text-white cursor-pointer shadow-md transition hover:bg-brand-700",
-            uploading && "opacity-50 cursor-not-allowed"
+        <div className="flex gap-2">
+          <label 
+            className={cn(
+              "absolute bottom-0 right-0 rounded-full bg-brand-600 p-1.5 text-white cursor-pointer shadow-md transition hover:bg-brand-700",
+              uploading && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <UploadIcon className="h-3.5 w-3.5" />
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleFileChange}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+          {photoUrl && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              disabled={uploading}
+              className={cn(
+                "absolute bottom-0 left-0 rounded-full bg-bad p-1.5 text-white cursor-pointer shadow-md transition hover:bg-red-800",
+                uploading && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <Trash2Icon className="h-3.5 w-3.5" />
+            </button>
           )}
-        >
-          <UploadIcon className="h-3.5 w-3.5" />
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            onChange={handleFileChange}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
+        </div>
       </div>
       {uploading && <p className="text-xs text-ink-muted">Uploading...</p>}
       {error && <p className="text-xs text-bad">{error}</p>}
