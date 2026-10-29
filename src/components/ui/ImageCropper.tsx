@@ -24,26 +24,27 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
   img.onload = () => {
     const boxSize = 280;
     const scaleToFit = Math.min(boxSize / img.width, boxSize / img.height);
-    setScale(scaleToFit * 1.5);
-    const offsetX = (boxSize - img.width * scaleToFit * 1.5) / 2;
-    const offsetY = (boxSize - img.height * scaleToFit * 1.5) / 2;
+    const initialScale = scaleToFit * 1.5;
+    setScale(initialScale);
+    const offsetX = (boxSize - img.width * initialScale) / 2;
+    const offsetY = (boxSize - img.height * initialScale) / 2;
     setPosition({ x: offsetX, y: offsetY });
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target !== containerRef.current && !containerRef.current?.contains(e.target as Node)) return;
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     setIsDragging(true);
     setStartPos({ x: e.clientX - position.x, y: e.clientY - position.y });
     setStartScale(scale);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleWindowMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
     e.preventDefault();
     setPosition({ x: e.clientX - startPos.x, y: e.clientY - startPos.y });
   };
 
-  const handleMouseUp = () => setIsDragging(false);
+  const handleWindowMouseUp = () => setIsDragging(false);
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -71,14 +72,10 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
     }
 
     const boxSize = 280;
-    const displayScale = scale;
-    const displayX = position.x;
-    const displayY = position.y;
-
-    const sourceX = -displayX / displayScale;
-    const sourceY = -displayY / displayScale;
-    const sourceW = boxSize / displayScale;
-    const sourceH = boxSize / displayScale;
+    const sourceX = -position.x / scale;
+    const sourceY = -position.y / scale;
+    const sourceW = boxSize / scale;
+    const sourceH = boxSize / scale;
 
     canvas.width = 400;
     canvas.height = 400;
@@ -94,23 +91,18 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
     onClose();
   };
 
-  const handleRotate = () => {
-    setScale(1);
+  const handleReset = () => {
     const boxSize = 280;
-    const offsetX = (boxSize - (img.width || boxSize)) / 2;
-    const offsetY = (boxSize - (img.height || boxSize)) / 2;
+    const scaleToFit = Math.min(boxSize / (img.width || boxSize), boxSize / (img.height || boxSize));
+    const initialScale = scaleToFit * 1.5;
+    setScale(initialScale);
+    const offsetX = (boxSize - (img.width || boxSize) * initialScale) / 2;
+    const offsetY = (boxSize - (img.height || boxSize) * initialScale) / 2;
     setPosition({ x: offsetX, y: offsetY });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm">
-      {/* Drag overlay behind modal content so clicks on buttons work */}
-      <div
-        className="absolute inset-0"
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      />
       <div className="relative w-full max-w-[640px] p-6 bg-white rounded-2xl shadow-2xl z-10">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-ink">Crop profile picture</h3>
@@ -120,20 +112,22 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
         </div>
 
         <div className="flex flex-col items-center gap-4">
-          <div ref={containerRef} className="relative w-[280px] h-[280px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner">
+          <div
+            ref={containerRef}
+            className="relative w-[280px] h-[280px] rounded-full overflow-hidden border border-line bg-canvas shadow-inner"
+            onWheel={handleWheel}
+          >
             <canvas ref={canvasRef} className="hidden" />
             <img
               ref={imageRef}
               src={imageUrl}
-              className="absolute"
+              className="absolute select-none cursor-grab active:cursor-grabbing"
               style={{
                 transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
                 transformOrigin: "center center",
-                cursor: isDragging ? "grabbing" : "grab",
                 userSelect: "none",
               }}
-              onMouseDown={handleMouseDown}
-              onWheel={handleWheel}
+              onMouseDown={handleImageMouseDown}
               onDragStart={(e) => e.preventDefault()}
               alt="Crop"
             />
@@ -143,7 +137,7 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
           <div className="flex items-center gap-3 px-4">
             <button
               type="button"
-              onClick={handleRotate}
+              onClick={handleReset}
               className="p-2 rounded-lg border border-line bg-white text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed"
               title="Reset"
             >
@@ -187,6 +181,8 @@ export function ImageCropper({ imageUrl, onCrop, onClose }: ImageCropperProps) {
           </div>
         </div>
       </div>
+
+      <div className="absolute inset-0" onMouseMove={(e) => handleWindowMouseMove(e)} onMouseUp={handleWindowMouseUp} onMouseLeave={handleWindowMouseUp} />
     </div>
   );
 }
