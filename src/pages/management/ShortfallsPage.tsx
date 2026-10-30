@@ -28,6 +28,7 @@ export function ShortfallsPage() {
   const [month, setMonth] = useState('');
   const [filter, setFilter] = useState<Filter>('pending');
   const [teamId, setTeamId] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [open, setOpen] = useState<DayCompliance | null>(null);
   const canPay = !!user?.canManagePayroll;
   const s = state.settings;
@@ -36,10 +37,11 @@ export function ShortfallsPage() {
     const e = state.employees.find((x) => x.id === d.employeeId);
     if (month && !d.date.startsWith(month)) return false;
     if (teamId && e?.teamId !== teamId) return false;
+    if (employeeId && d.employeeId !== employeeId) return false;
     if (filter === 'pending') return isPendingReview(d);
     if (filter === 'all') return true;
     return d.review?.status === filter;
-  }), [all, month, teamId, filter, state.employees]);
+  }), [all, month, teamId, employeeId, filter, state.employees]);
 
   const openDay = open ? all.find((d) => d.employeeId === open.employeeId && d.date === open.date) ?? open : null;
   const pendingCount = all.filter(isPendingReview).length;
@@ -57,7 +59,7 @@ export function ShortfallsPage() {
       <Banner tone="info" className="mb-4">Proposed deductions use the approved method: <strong>{s.deductionMethod === 'daily_amount' ? 'daily payable amount ÷ daily target' : s.deductionMethod === 'monthly_proration' ? 'monthly salary ÷ payroll basis' : 'manual entry'}</strong>{s.policyApprovedBy && ` (approved by ${s.policyApprovedBy})`}.</Banner>
       }
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+      <div className="mb-4 grid gap-2 sm:grid-cols-4">
         <Select aria-label="Review status" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
           <option value="pending">Awaiting review ({pendingCount})</option>
           <option value="all">All statuses</option>
@@ -74,6 +76,10 @@ export function ShortfallsPage() {
         <Select aria-label="Team" value={teamId} onChange={(e) => setTeamId(e.target.value)}>
           <option value="">All teams</option>
           {state.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </Select>
+        <Select aria-label="Employee" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+          <option value="">All employees</option>
+          {state.employees.map((e) => <option key={e.id} value={e.id}>{e.name} ({e.code})</option>)}
         </Select>
       </div>
 
