@@ -176,14 +176,22 @@ now: number)
   const today = todayKey(now);
   const issues: string[] = [];
 
+  // --- Pro-rata: employee who joined mid-month is paid only from joining date ---
+  const monthStart = dates[0];
+  const effectiveFrom = emp.joiningDate && emp.joiningDate > monthStart ? emp.joiningDate : monthStart;
+  const payrollDates = dates.filter(d => d >= effectiveFrom);
+  const totalDaysInMonth = dates.length;
+  const payrollDayCount = payrollDates.length;
+  // -----------------------------------------------------------------------------
+
   let casual = 0;
   let emergency = 0;
   for (const l of ctx.leaves) {
     if (l.employeeId !== emp.id || l.status !== 'Approved') continue;
     for (const d of eachDateKey(l.startDate, l.endDate)) {
       if (!d.startsWith(month) || !isScheduled(emp, d, settings) || holidayOn(d, ctx.holidays)) continue;
-      if (l.type === 'Casual') casual++;else
-      emergency++;
+      if (d < effectiveFrom) continue;
+      if (l.type === 'Casual') casual++; else emergency++;
     }
   }
   if (casual > 0 && settings.casualTreatment === 'not_configured')
@@ -194,53 +202,74 @@ now: number)
   (settings.casualTreatment === 'unpaid' ? casual : 0) + (settings.emergencyTreatment === 'unpaid' ? emergency : 0);
 
   const shortfall: ShortfallSummary = { days: 0, totalMin: 0, pending: 0, approvedDeduction: 0, resolvedWithoutDeduction: 0 };
-  for (const d of dates) {
+  for (const d of payrollDates) {
     if (d > today) continue;
     const dc = computeDay(ctx, emp, d, now);
     if (!dc.isShortfall) continue;
     shortfall.days++;
     shortfall.totalMin += dc.unapprovedShortfallMin;
     const r = dc.review;
-    if (!r || r.status === 'Pending Review' || r.status === 'Correction Requested') shortfall.pending++;else
+    if (!r || r.status === 'Pending Review' || r.status === 'Correction Requested') shortfall.pending++; else
     if (r.status === 'Confirmed' || r.status === 'Adjusted') {
       if (r.finalDeduction === null || r.finalDeduction === undefined)
-      issues.push(`Shortfall on ${fmtDate(d, 'd MMM')} is confirmed but has no final approved deduction.`);else
+      issues.push(`Shortfall on ${fmtDate(d, 'd MMM')} is confirmed but has no final approved deduction.`); else
       shortfall.approvedDeduction += r.finalDeduction;
     } else shortfall.resolvedWithoutDeduction++;
   }
-  if (shortfall.pending > 0) issues.push(`${shortfall.pending} working-hour shortfall(s) awaiting management review.`);
 
-  const scheduledDays = scheduledDaysInMonth(emp, month, ctx.holidays, settings);
+  const scheduledDays = payrollDates.filter(d => isScheduled(emp, d, settings) && !holidayOn(d, ctx.holidays)).length;
   if (!ss) {
     issues.push('No salary structure is configured for this employee.');
     return {
-      employee: emp, month, salaryDays: dates.length - lopDays, lopDays, lopAmount: 0, scheduledDays,
+      employee: emp, month, salaryDays: payrollDayCount - lopDays, lopDays, lopAmount: 0, scheduledDays,
       earnings: [], gross: 0, employerContribution: 0, deductions: [], totalDeduction: 0, takeHome: 0,
       shortfall, leave: { casual, emergency }, issues, ready: false
     };
   }
   const gross = grossOf(ss);
+
+  // --- Pro-rata gross based on joining date ---
+  let ratio = 1;
+  if (effectiveFrom > monthStart) {
+    if (settings.payrollBasis === 'calendar_days') {
+      ratio = payrollDayCount / totalDaysInMonth;
+    } else if (settings.payrollBasis === 'scheduled_working_days') {
+      const totalScheduled = dates.filter(d => isScheduled(emp, d, settings) && !holidayOn(d, ctx.holidays)).length;
+      ratio = totalScheduled > 0 ? scheduledDays / totalScheduled : 1;
+    }
+  }
+  const proRataGross = roundAmount(gross * ratio, settings);
+
+  // --- Pro-rata earnings ---
+  const proRataEarnings = {
+    basic: roundAmount(ss.earnings.basic * ratio, settings),
+    hra: roundAmount(ss.earnings.hra * ratio, settings),
+    conveyance: roundAmount(ss.earnings.conveyance * ratio, settings),
+    otherAllowances: roundAmount(ss.earnings.otherAllowances * ratio, settings),
+    incentives: roundAmount(ss.earnings.incentives * ratio, settings)
+  };
+
   let lopAmount = 0;
   if (lopDays > 0) {
     const basis = payrollBasisDays(settings, emp, month, ctx.holidays);
-    if (!basis) issues.push('Leave/LOP calculation basis is not configured.');else
-    lopAmount = roundAmount(gross / basis * lopDays, settings);
+    if (!basis) issues.push('Leave/LOP calculation basis is not configured.'); else
+    lopAmount = roundAmount(proRataGross / basis * lopDays, settings);
   }
-  const { earnings, deductions, totalDeduction } = linesFromStructure(ss, lopAmount, shortfall.approvedDeduction);
+  const { earnings, deductions, totalDeduction } = linesFromStructure({ ...ss, earnings: proRataEarnings }, lopAmount, shortfall.approvedDeduction);
   return {
     employee: emp,
     structure: ss,
     month,
-    salaryDays: dates.length - lopDays,
+    salaryDays: payrollDayCount - lopDays,
     lopDays,
     lopAmount,
     scheduledDays,
     earnings,
-    gross,
+    gross: proRataGross,
     employerContribution: ss.employerContribution,
     deductions,
     totalDeduction,
-    takeHome: gross - totalDeduction,
+    takeHome: proRataGross - totalDeduction,
     shortfall,
     leave: { casual, emergency },
     issues,
@@ -289,10 +318,12 @@ export function payslipBlocker(emp: {bankName?: string; bankAccountNumber?: stri
  * plus anyone who was active during the month and recorded time in it.
  */
 export function payrollEmployees(state: AppState, month: string): Employee[] {
-  const first = monthDates(month)[0];
+  const dates = monthDates(month);
+  const first = dates[0];
+  const last = dates[dates.length - 1];
   return state.employees.filter(
     (e) =>
-      e.status === 'Active' ||
+      (e.status === 'Active' && e.joiningDate <= last) ||
       (e.joiningDate <= first && state.sessions.some((s) => s.employeeId === e.id && s.date.startsWith(month)))
   );
 }
