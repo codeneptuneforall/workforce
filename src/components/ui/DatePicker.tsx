@@ -162,7 +162,27 @@ export function DatePicker({
         className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
           <ChevronLeftIcon className="h-4 w-4" />
         </button>
-        <p className="text-sm font-semibold text-ink" aria-live="polite">{format(viewMonth, 'MMMM yyyy')}</p>
+        <div className="flex items-center gap-2">
+          <select
+            aria-label="Year"
+            value={viewMonth.getFullYear()}
+            onChange={(e) => setViewMonth(startOfMonth(new Date(Number(e.target.value), viewMonth.getMonth(), 1)))}
+            className="text-xs font-semibold text-ink bg-transparent border-none focus:ring-0 cursor-pointer">
+            {[...Array(120).keys()].map((i) => {
+              const year = 1900 + i;
+              return <option key={year} value={year}>{year}</option>;
+            })}
+          </select>
+          <select
+            aria-label="Month"
+            value={viewMonth.getMonth()}
+            onChange={(e) => setViewMonth(startOfMonth(new Date(viewMonth.getFullYear(), Number(e.target.value), 1)))}
+            className="text-xs font-medium text-ink bg-transparent border-none focus:ring-0 cursor-pointer">
+            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+              <option key={i} value={i}>{m}</option>
+            ))}
+          </select>
+        </div>
         <button type="button" onClick={() => setViewMonth((m) => addMonths(m, 1))} aria-label="Next month"
         className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
           <ChevronRightIcon className="h-4 w-4" />
