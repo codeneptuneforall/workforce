@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, startOfMonth, subMonths } from 'date-fns';
-import { BanknoteIcon, CalculatorIcon, CheckIcon, FileTextIcon, RotateCcwIcon, SendIcon, SettingsIcon } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { BanknoteIcon, CalculatorIcon, CheckIcon, DownloadIcon, FileTextIcon, RotateCcwIcon, SendIcon, SettingsIcon } from 'lucide-react';
 import { PayrollRecordDrawer } from '../../components/payroll/PayrollRecordDrawer';
 import { Badge, StatusBadge } from '../../components/ui/Badge';
 import { Button, ButtonLink } from '../../components/ui/Button';
@@ -53,6 +54,50 @@ export function PayrollPage() {
   const totals = useMemo(() => records.reduce((a, r) => ({ g: a.g + r.gross, d: a.d + r.totalDeduction, t: a.t + r.takeHome }), { g: 0, d: 0, t: 0 }), [records]);
   const failed = (run.failedEmployeeIds ?? []).map((id) => employee(id)?.name).filter(Boolean);
 
+  const exportToExcel = () => {
+    const wsData: any[][] = [
+      ['Employee Code', 'Employee Name', 'Bank Name', 'Account Number', 'IFSC Code', 'Amount (₹)']
+    ];
+
+    const recordsToExport = snapshot ? currentSlips : records;
+
+    recordsToExport.forEach((rec) => {
+      const empId = 'employeeId' in rec ? rec.employeeId : rec.employee.id;
+      const emp = state.employees.find((e) => e.id === empId)!;
+      const bankName = emp.bankName || '';
+      const accountNumber = emp.bankAccountNumber || '';
+      const ifscCode = emp.ifscCode || '';
+      const amount = 'data' in rec ? rec.data.takeHome : rec.takeHome;
+
+      wsData.push([
+        emp.code,
+        emp.name,
+        bankName,
+        accountNumber,
+        ifscCode,
+        amount
+      ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Set column widths
+    const colWidths = [
+      { wch: 15 }, // Employee Code
+      { wch: 25 }, // Employee Name
+      { wch: 30 }, // Bank Name
+      { wch: 20 }, // Account Number
+      { wch: 15 }, // IFSC Code
+      { wch: 15 }  // Amount
+    ];
+    ws['!cols'] = colWidths;
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Payroll');
+    const fileName = `BLKPAY_${month.replace(/-/g, '')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   const primary = (() => {
     switch (run.status) {
       case 'Draft':
@@ -88,7 +133,7 @@ export function PayrollPage() {
   return (
     <div>
       <PageHeader title="Payroll" description="Monthly payroll from approved salary structures, leave and reviewed working-hour shortfalls."
-      actions={<><ButtonLink to="/management/payroll/salary-structures" icon={SettingsIcon}>Salary structures</ButtonLink>{primary}</>} />
+      actions={<><ButtonLink to="/management/payroll/salary-structures" icon={SettingsIcon}>Salary structures</ButtonLink><Button icon={DownloadIcon} onClick={exportToExcel}>Export Excel</Button>{primary}</>} />
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Select aria-label="Payroll month" className="w-52" value={month} onChange={(e) => setMonth(e.target.value)}>
