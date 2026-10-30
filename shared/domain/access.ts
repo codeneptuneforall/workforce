@@ -75,8 +75,9 @@ export function canWorkOnTask(task: Task, employee?: Employee): boolean {
   return !!task.teamId && task.teamId === employee.teamId;
 }
 
-/** Can this account approve payroll, release payslips and confirm deductions? */
-export const canManagePayroll = (user: AuthUser): boolean => user.role === 'management' && user.canManagePayroll;
+/** Can this account approve payroll, release payslips and confirm deductions?
+ *  All management accounts have full payroll access. */
+export const canManagePayroll = (user: AuthUser): boolean => user.role === 'management';
 
 /** Which role a portal path belongs to. */
 export const roleForPath = (pathname: string): Role | null =>

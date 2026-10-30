@@ -19,7 +19,7 @@ export const users: SeedUser[] = [
   email: 'arjun.mehta@codeneptune.in',
   role: 'management',
   title: 'Engineering Manager',
-  canManagePayroll: false
+  canManagePayroll: true
 },
 {
   id: 'u-priya',
