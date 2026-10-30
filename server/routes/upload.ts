@@ -10,15 +10,11 @@ const root = path.resolve(dir, "../../");
 const uploadDir = path.resolve(root, "uploads/profiles");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-    const id = (req as any).user?.employeeId || (req as any).user?.id || "unknown";
-    const name = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-    cb(null, name);
-  }
-});
+// Use memory storage so we can convert the file to a base64 data URL
+// and return it instead of a local file path. This ensures profile
+// pictures survive deploys because the data URL is stored in MongoDB
+// alongside the employee record, not as a separate file on the server.
+const storage = multer.memoryStorage();
 
 const fileFilter = (_req: any, file: any, cb: any) => {
   const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -35,9 +31,13 @@ const upload = multer({
 router.post("/profile-picture", upload.single("photo"), async (req: any, res: any) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const url = `${baseUrl}/uploads/profiles/${req.file.filename}`;
-    res.json({ url });
+
+    // Convert the uploaded buffer to a base64 data URL.
+    // This is stored in MongoDB as the employee's photoUrl, so it travels
+    // with the record and survives deploys — no separate file on the server.
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+
+    res.json({ url: dataUrl });
   } catch (e: any) {
     if (!res.headersSent) {
       res.status(400).json({ error: e.message || "Upload failed" });
