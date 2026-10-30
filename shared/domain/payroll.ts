@@ -231,11 +231,12 @@ now: number)
   // --- Pro-rata gross based on joining date ---
   let ratio = 1;
   if (effectiveFrom > monthStart) {
-    if (settings.payrollBasis === 'calendar_days') {
-      ratio = payrollDayCount / totalDaysInMonth;
-    } else if (settings.payrollBasis === 'scheduled_working_days') {
+    if (settings.payrollBasis === 'scheduled_working_days') {
       const totalScheduled = dates.filter(d => isScheduled(emp, d, settings) && !holidayOn(d, ctx.holidays)).length;
       ratio = totalScheduled > 0 ? scheduledDays / totalScheduled : 1;
+    } else {
+      // Default to calendar_days proration for any payroll basis (including not configured)
+      ratio = payrollDayCount / totalDaysInMonth;
     }
   }
   const proRataGross = roundAmount(gross * ratio, settings);
