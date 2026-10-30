@@ -54,46 +54,86 @@ export function PayrollPage() {
   const totals = useMemo(() => records.reduce((a, r) => ({ g: a.g + r.gross, d: a.d + r.totalDeduction, t: a.t + r.takeHome }), { g: 0, d: 0, t: 0 }), [records]);
   const failed = (run.failedEmployeeIds ?? []).map((id) => employee(id)?.name).filter(Boolean);
 
-  const exportToExcel = () => {
-    const wsData: any[][] = [
-      ['Employee Code', 'Employee Name', 'Bank Name', 'Account Number', 'IFSC Code', 'Amount (₹)']
-    ];
+  const exportToExcel = async () => {
+    // Load the original bank template as the base with cell styles preserved
+    const templateResponse = await fetch('/templates/BLKPAY_YYYYMMDD.xlsx');
+    if (!templateResponse.ok) {
+      throw new Error('Bank template not found.');
+    }
+    const templateBuffer = await templateResponse.arrayBuffer();
+    const wb = XLSX.read(templateBuffer, { type: 'array', cellStyles: true });
+
+    const ws = wb.Sheets['Sheet1'];
+    if (!ws) throw new Error('Sheet1 not found in template.');
 
     const recordsToExport = snapshot ? currentSlips : records;
+    const today = todayKey(now); // YYYY-MM-DD
+    const [yyyy, mm, dd] = today.split('-');
+    const transactionDate = `${dd}/${mm}/${yyyy}`;
 
+    // Capture styles from row 3 (first data row, 0-indexed row 2) to copy to new rows
+    const colStyles: any = {};
+    for (let C = 0; C < 15; ++C) {
+      const cellRef = XLSX.utils.encode_cell({ r: 2, c: C });
+      const cell = ws[cellRef];
+      if (cell) {
+        colStyles[C] = {};
+        if (cell.s) colStyles[C].s = { ...cell.s };
+        if (cell.z) colStyles[C].z = cell.z;
+      }
+    }
+
+    // Clear sample data VALUES from rows 3 onwards but preserve cell objects and styles
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let R = 2; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        if (ws[cellRef]) {
+          const style = ws[cellRef].s;
+          const z = ws[cellRef].z;
+          ws[cellRef] = { s: style, z: z };
+        }
+      }
+    }
+
+    // Populate actual payroll records starting at row 3 (0-indexed row 2)
+    let rowIdx = 2;
     recordsToExport.forEach((rec) => {
       const empId = 'employeeId' in rec ? rec.employeeId : rec.employee.id;
       const emp = state.employees.find((e) => e.id === empId)!;
-      const bankName = emp.bankName || '';
-      const accountNumber = emp.bankAccountNumber || '';
-      const ifscCode = emp.ifscCode || '';
       const amount = 'data' in rec ? rec.data.takeHome : rec.takeHome;
+      const rowNum = rowIdx + 1; // 1-indexed Excel row
 
-      wsData.push([
-        emp.code,
-        emp.name,
-        bankName,
-        accountNumber,
-        ifscCode,
-        amount
-      ]);
+      const rowStyle = colStyles[rowIdx - 2] || {};
+
+      // A: Beneficiary Name (text)
+      ws[`A${rowNum}`] = { t: 's', v: emp.name, s: rowStyle[0]?.s, z: rowStyle[0]?.z };
+      // B: Beneficiary Account Number (text — preserve leading zeros, prevent scientific notation)
+      ws[`B${rowNum}`] = { t: 's', v: emp.bankAccountNumber || '', s: rowStyle[1]?.s, z: rowStyle[1]?.z || '@' };
+      // C: IFSC (text)
+      ws[`C${rowNum}`] = { t: 's', v: emp.ifscCode || '', s: rowStyle[2]?.s, z: rowStyle[2]?.z };
+      // D: Transaction Type — left blank (do not invent banking info)
+      // E: Debit Account Number — left blank (not available)
+      // F: Transaction Date (DD/MM/YYYY, text)
+      ws[`F${rowNum}`] = { t: 's', v: transactionDate, s: rowStyle[5]?.s, z: rowStyle[5]?.z };
+      // G: Amount (number)
+      ws[`G${rowNum}`] = { t: 'n', v: amount, s: rowStyle[6]?.s, z: rowStyle[6]?.z };
+      // H: Currency (text)
+      ws[`H${rowNum}`] = { t: 's', v: 'INR', s: rowStyle[7]?.s, z: rowStyle[7]?.z };
+      // I: Beneficiary Email ID (text)
+      ws[`I${rowNum}`] = { t: 's', v: emp.email || '', s: rowStyle[8]?.s, z: rowStyle[8]?.z };
+      // J: Remarks (text — employee code)
+      ws[`J${rowNum}`] = { t: 's', v: emp.code || '', s: rowStyle[9]?.s, z: rowStyle[9]?.z };
+      // K–O: Custom Headers — left blank (styles preserved from clearing step)
+
+      rowIdx++;
     });
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    // Update sheet range to include new data rows
+    const lastRow = rowIdx; // 0-indexed, one past last written row
+    const lastCol = 14; // O (15 columns, 0-indexed)
+    ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: lastRow - 1, c: lastCol })}`;
 
-    // Set column widths
-    const colWidths = [
-      { wch: 15 }, // Employee Code
-      { wch: 25 }, // Employee Name
-      { wch: 30 }, // Bank Name
-      { wch: 20 }, // Account Number
-      { wch: 15 }, // IFSC Code
-      { wch: 15 }  // Amount
-    ];
-    ws['!cols'] = colWidths;
-
-    XLSX.utils.book_append_sheet(wb, ws, 'Payroll');
     const fileName = `BLKPAY_${month.replace(/-/g, '')}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
