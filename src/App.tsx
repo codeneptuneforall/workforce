@@ -44,6 +44,8 @@ import { TimesheetReviewPage } from './pages/management/TimesheetReviewPage';
 import { HolidayCalendarPage } from './pages/shared/HolidayCalendarPage';
 import { NotificationsPage } from './pages/shared/NotificationsPage';
 import { BugTrackerProvider } from './bugTracker/contexts/BugTrackerContext';
+
+const BUG_TRACKER_ENABLED = import.meta.env.VITE_BUG_TRACKER_ENABLED !== 'false';
 import { Overview } from './bugTracker/pages/bugTracker/Overview';
 import { AllIssues } from './bugTracker/pages/bugTracker/AllIssues';
 import { IssueDetail } from './bugTracker/pages/bugTracker/IssueDetail';
@@ -101,6 +103,7 @@ export function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
                 <Route path="late-logins" element={<LateLoginsPage />} />
+{BUG_TRACKER_ENABLED && (
                 <Route path="bug-tracker" element={<BugTrackerProvider><Outlet /></BugTrackerProvider>}>
                   <Route index element={<Overview />} />
                   <Route path="issues" element={<AllIssues />} />
@@ -113,6 +116,7 @@ export function App() {
                   <Route path="reports" element={<Reports />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
+)}
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
               </Route>
             </Route>
@@ -133,12 +137,14 @@ export function App() {
                 <Route path="payslips" element={<MyPayslipsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="profile" element={<MyProfilePage />} />
+{BUG_TRACKER_ENABLED && (
                 <Route path="bug-tracker" element={<BugTrackerProvider><Outlet /></BugTrackerProvider>}>
                   <Route index element={<MyIssues />} />
                   <Route path="my-issues" element={<MyIssues />} />
                   <Route path="report" element={<ReportBug />} />
                   <Route path="board" element={<Kanban />} />
                 </Route>
+)}
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
               </Route>
             </Route>

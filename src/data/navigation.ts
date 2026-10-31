@@ -27,6 +27,8 @@ import {
 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+const BUG_TRACKER_ENABLED = import.meta.env.VITE_BUG_TRACKER_ENABLED !== 'false';
+
 export interface NavItem {
   label: string;
   to: string;

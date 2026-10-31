@@ -69,7 +69,17 @@ app.use('/api', attachUser);
 app.use('/api/auth', authRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/uploads', express.static(path.resolve(dir, '../uploads')));
-app.use('/api/bug-tracker', bugTrackerRouter);
+// Bug Tracker status endpoint is always available (even when disabled).
+app.use('/api/bug-tracker/status', (_req, res) => {
+  res.json({ enabled: config.bugTrackerEnabled });
+});
+if (config.bugTrackerEnabled) {
+  app.use('/api/bug-tracker', bugTrackerRouter);
+} else {
+  app.use('/api/bug-tracker', (_req, res) => {
+    res.status(503).json({ error: 'Bug Tracker is disabled.' });
+  });
+}
 app.use('/api', apiRouter);
 
 app.use('/api', (_req, res) => {

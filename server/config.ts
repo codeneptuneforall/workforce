@@ -34,7 +34,9 @@ export const config = {
   seedManagerPassword: process.env.SEED_MANAGER_PASSWORD ?? 'CodeNeptune',
   seedDefaultPassword: process.env.SEED_DEFAULT_PASSWORD ?? 'Welcome@123',
   /** Serve the built client from the API server (single-origin production deployment). */
-  serveClient: process.env.SERVE_CLIENT !== 'false'
+  serveClient: process.env.SERVE_CLIENT !== 'false',
+  /** Enable the integrated Bug Tracker module. Defaults to enabled. */
+  bugTrackerEnabled: process.env.BUG_TRACKER_ENABLED !== 'false'
 };
 
 if (isProduction && config.jwtSecret.length < 32) {
