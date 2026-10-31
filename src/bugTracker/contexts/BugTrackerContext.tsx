@@ -124,12 +124,12 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
           bugTrackerApi.getNotifications()
         ]);
         if (!mounted) return;
-        setEmployees(empRes.employees);
-        setProjects(projRes.projects);
-        setTeams(teamRes.teams);
-        setNotifications(notifRes.notifications);
-      } catch {
-        // Data will be empty until the API is available.
+        setEmployees(empRes.employees ?? []);
+        setProjects(projRes.projects ?? []);
+        setTeams(teamRes.teams ?? []);
+        setNotifications(notifRes.notifications ?? []);
+      } catch (err) {
+        console.error('[bugTracker] initial data load failed', err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -142,9 +142,9 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     (async () => {
       try {
         const res = await bugTrackerApi.getIssues();
-        if (mounted) setIssues(res.issues);
-      } catch {
-        // Ignore  issues will be empty.
+        if (mounted) setIssues(res.issues ?? []);
+      } catch (err) {
+        console.error('[bugTracker] issues load failed', err);
       }
     })();
     return () => { mounted = false; };
