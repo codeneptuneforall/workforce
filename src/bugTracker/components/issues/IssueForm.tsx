@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircleIcon, InfoIcon } from 'lucide-react';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
+import { useData } from '../../../contexts/DataContext';
 import { environments, issueTypes, priorities, severities } from '../../data/trackerConfig';
 import type { IssueDraft } from '../../types/bugTracker';
 import type { IssueFormErrors } from '../../hooks/useIssueForm';
@@ -36,9 +37,22 @@ interface IssueFormProps {
 const opts = (values: readonly string[]) => values.map((v) => ({ value: v, label: v }));
 
 export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: IssueFormProps) {
-  const { accessibleProjects, employees, permissions, currentUser } = useBugTracker();
+  const { permissions, currentUser } = useBugTracker();
+  const { state } = useData();
   const errorCount = Object.keys(errors).length;
-  const developers = employees.filter((e) => e.role === 'developer' && (!draft.projectId || e.projectIds.includes(draft.projectId)));
+  // Reuse the verified Workforce project/employee sources (DataContext), matching
+  // the working Task Detail / Start Task dropdowns.
+  const workforceProjects = (state.projects ?? []).filter((p: any) => p.status !== 'Archived');
+  const accessibleProjects = workforceProjects.length ? workforceProjects : (state.projects ?? []);
+  const workforceEmployees = state.employees ?? [];
+  const developers = workforceEmployees
+    .map((e: any) => {
+      const designation = String(e.designation || '').toLowerCase();
+      const role = designation.includes('qa') || designation.includes('quality') ? 'qa' : 'developer';
+      const projectIds = (state.projects ?? []).filter((p: any) => (p.employeeIds || []).includes(e.id)).map((p: any) => p.id);
+      return { id: e.id, name: e.name, role, projectIds };
+    })
+    .filter((e: any) => e.role === 'developer' && (!draft.projectId || e.projectIds.includes(draft.projectId)));
 
   return (
     <form
