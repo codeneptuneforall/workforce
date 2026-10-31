@@ -16,7 +16,7 @@ function pillCls(value: string, selected: boolean): string {
     Critical: { sel: 'border-danger bg-danger text-white', unsel: 'border-danger-line bg-danger-soft text-danger-ink hover:bg-danger-soft/80' },
     High: { sel: 'border-warning bg-warning text-white', unsel: 'border-warning-line bg-warning-soft text-warning-ink hover:bg-warning-soft/80' },
     Medium: { sel: 'border-info bg-info text-white', unsel: 'border-info-line bg-info-soft text-info-ink hover:bg-info-soft/80' },
-    Low: { sel: 'border-line bg-neutral-soft text-neutral-ink', unsel: 'border-line bg-neutral-soft text-neutral-ink hover:bg-neutral-soft/80' },
+    Low: { sel: 'border-success bg-success text-white', unsel: 'border-success-line bg-success-soft text-success-ink hover:bg-success-soft/80' },
     Urgent: { sel: 'border-danger bg-danger text-white', unsel: 'border-danger-line bg-danger-soft text-danger-ink hover:bg-danger-soft/80' },
     Normal: { sel: 'border-info bg-info text-white', unsel: 'border-info-line bg-info-soft text-info-ink hover:bg-info-soft/80' },
   };
