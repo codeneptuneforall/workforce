@@ -54,7 +54,7 @@ export function Overview() {
             className="w-44" />
           
             <SelectField id="overview-range" compact ariaLabel="Date range" value={range} onChange={setRange} options={rangeOptions} className="w-52" />
-            <ButtonLink to={bugTrackerRoutes.report} variant="primary" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
+            <ButtonLink to={bugTrackerRoutes.report} variant="primary" className="bg-[#4c2e87] hover:bg-[#3a2266]" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
               Report a bug
             </ButtonLink>
           </>

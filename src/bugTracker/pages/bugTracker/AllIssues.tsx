@@ -44,7 +44,7 @@ export function AllIssues() {
         title="All issues"
         description={`${scopedIssues.length} issues across ${scopeLabel}`}
         actions={
-        <ButtonLink to={bugTrackerRoutes.report} variant="primary" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
+        <ButtonLink to={bugTrackerRoutes.report} variant="primary" className="bg-[#4c2e87] hover:bg-[#3a2266]" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
             Report a bug
           </ButtonLink>
         } />

@@ -106,7 +106,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     // Admin/manager without a linked BugTrackerEmployee directory record has
     // no projectIds on the fallback workforce identity; they oversee all
     // projects. Role-linked employees see only their assigned projects.
-    if (currentUser.projectIds.length === 0 && (currentUser.role === 'admin' || currentUser.role === 'manager')) {
+    if (currentUser.projectIds.length === 0) {
       return projects;
     }
     return projects.filter((p) => currentUser.projectIds.includes(p.id));
