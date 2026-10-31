@@ -317,3 +317,171 @@ export const AuditModel = mongoose.model('AuditEntry', AuditSchema);
 export const SettingsModel = mongoose.model('AppSettings', SettingsSchema);
 export const PasswordResetModel = mongoose.model('PasswordReset', PasswordResetSchema);
 export const LateLoginModel = mongoose.model('LateLogin', LateLoginSchema);
+
+// ── Bug Tracker ──────────────────────────────────────────────────────────────
+// The bug tracker is a separate domain with its own people, projects and issues.
+// It shares the workforce user table for authentication but keeps its own
+// directory (members, teams, projects) and issue lifecycle.
+
+const BugTrackerEmployeeSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    name: { type: String, required: true },
+    initials: { type: String, default: '' },
+    title: { type: String, default: '' },
+    email: { type: String, default: '' },
+    teamId: { type: String },
+    role: { type: String, default: 'reporter', enum: ['admin', 'manager', 'developer', 'qa', 'reporter'] },
+    projectIds: { type: [String], default: [] },
+    userId: { type: String } // links to workforce User table
+  },
+  opts
+);
+
+const BugTrackerProjectSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    name: { type: String, required: true },
+    code: { type: String, required: true },
+    leadId: { type: String }
+  },
+  opts
+);
+
+const BugTrackerTeamSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    name: { type: String, required: true },
+    managerId: { type: String }
+  },
+  opts
+);
+
+const BugTrackerIssueSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    key: { type: String, required: true, unique: true },
+    title: { type: String, required: true },
+    description: { type: String, default: '' },
+    projectId: { type: String, required: true },
+    type: { type: String, default: 'Bug' },
+    severity: { type: String, default: 'Medium' },
+    priority: { type: String, default: 'Normal' },
+    status: { type: String, default: 'New' },
+    assigneeId: { type: String, default: null },
+    reporterId: { type: String, required: true },
+    createdAt: { type: String, required: true },
+    updatedAt: { type: String, required: true },
+    dueDate: { type: String, default: null },
+    feature: { type: String, default: '' },
+    environment: { type: String, default: 'Production' },
+    stepsToReproduce: { type: [String], default: [] },
+    expectedResult: { type: String, default: '' },
+    actualResult: { type: String, default: '' },
+    labels: { type: [String], default: [] },
+    attachments: {
+      type: [
+        new Schema(
+          {
+            id: { type: String, required: true },
+            name: { type: String, required: true },
+            fileName: { type: String }, // on-disk filename for authenticated download
+            sizeKb: { type: Number, default: 0 },
+            kind: { type: String, default: 'document' },
+            previewUrl: String,
+            uploadedById: { type: String, required: true },
+            uploadedAt: { type: String, required: true }
+          },
+          { _id: false }
+        )
+      ],
+      default: []
+    },
+    comments: {
+      type: [
+        new Schema(
+          {
+            id: { type: String, required: true },
+            authorId: { type: String, required: true },
+            body: { type: String, required: true },
+            createdAt: { type: String, required: true },
+            kind: { type: String, default: 'comment' }
+          },
+          { _id: false }
+        )
+      ],
+      default: []
+    },
+    activity: {
+      type: [
+        new Schema(
+          {
+            id: { type: String, required: true },
+            actorId: { type: String, required: true },
+            message: { type: String, required: true },
+            createdAt: { type: String, required: true },
+            toStatus: String
+          },
+          { _id: false }
+        )
+      ],
+      default: []
+    },
+    relatedIssueKeys: { type: [String], default: [] },
+    blocked: { type: Boolean, default: false },
+    blockedReason: String,
+    submittedForQaAt: String,
+    fixSummary: String,
+    reopenReason: String,
+    qa: {
+      type: new Schema(
+        {
+          status: { type: String, default: 'Not submitted' },
+          verifierId: String,
+          notes: String,
+          reason: String,
+          verifiedAt: String
+        },
+        { _id: false }
+      ),
+      default: () => ({ status: 'Not submitted' })
+    },
+    resolution: {
+      type: new Schema(
+        {
+          summary: String,
+          resolvedById: String,
+          resolvedAt: String,
+          verificationOutcome: String
+        },
+        { _id: false }
+      ),
+      default: undefined
+    }
+  },
+  opts
+);
+BugTrackerIssueSchema.index({ projectId: 1 });
+BugTrackerIssueSchema.index({ status: 1 });
+BugTrackerIssueSchema.index({ assigneeId: 1 });
+BugTrackerIssueSchema.index({ reporterId: 1 });
+
+const BugTrackerNotificationSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    recipientId: { type: String, required: true },
+    title: { type: String, required: true },
+    body: { type: String, default: '' },
+    issueKey: String,
+    createdAt: { type: String, required: true },
+    read: { type: Boolean, default: false }
+  },
+  opts
+);
+BugTrackerNotificationSchema.index({ recipientId: 1 });
+
+export const BugTrackerEmployeeModel = mongoose.model('BugTrackerEmployee', BugTrackerEmployeeSchema);
+export const BugTrackerProjectModel = mongoose.model('BugTrackerProject', BugTrackerProjectSchema);
+export const BugTrackerTeamModel = mongoose.model('BugTrackerTeam', BugTrackerTeamSchema);
+export const BugTrackerIssueModel = mongoose.model('BugTrackerIssue', BugTrackerIssueSchema);
+export const BugTrackerNotificationModel = mongoose.model('BugTrackerNotification', BugTrackerNotificationSchema);

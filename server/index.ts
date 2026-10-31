@@ -10,6 +10,7 @@ import { connectDatabase, disconnectDatabase } from './db';
 import { apiRouter } from './routes/api';
 import { authRouter } from './routes/auth';
 import uploadRouter from './routes/upload';
+import { bugTrackerRouter } from './routes/bugTracker';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(dir, '../dist/client');
@@ -68,6 +69,7 @@ app.use('/api', attachUser);
 app.use('/api/auth', authRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/uploads', express.static(path.resolve(dir, '../uploads')));
+app.use('/api/bug-tracker', bugTrackerRouter);
 app.use('/api', apiRouter);
 
 app.use('/api', (_req, res) => {

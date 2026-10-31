@@ -1,20 +1,25 @@
 import {
+  AlertCircleIcon,
   BarChart3Icon,
   BellIcon,
   BriefcaseIcon,
   CalendarCheckIcon,
   CalendarDaysIcon,
+  ClipboardCheckIcon,
   ClipboardListIcon,
   ClockIcon,
   FileTextIcon,
   FolderKanbanIcon,
+  GaugeIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
   PlaneIcon,
   ReceiptIcon,
   ScrollTextIcon,
   SettingsIcon,
+  SquareKanbanIcon,
   TimerIcon,
+  UserCheckIcon,
   UserIcon,
   UsersIcon,
   UsersRoundIcon,
@@ -35,8 +40,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export const managementNav: NavGroup[] = [
-{
+export const managementNav: NavGroup[] = [{
   label: 'Overview',
   items: [
   { label: 'Dashboard', to: '/management/dashboard', icon: LayoutDashboardIcon },
@@ -69,7 +73,7 @@ export const managementNav: NavGroup[] = [
 {
   label: 'Payroll',
   items: [
-  { label: 'Reports', to: '/management/reports', icon: BarChart3Icon },
+  { label: 'Payroll Reports', to: '/management/reports', icon: BarChart3Icon },
   { label: 'Payroll', to: '/management/payroll', icon: WalletIcon, payrollOnly: true },
   { label: 'Payslips', to: '/management/payslips', icon: ReceiptIcon, payrollOnly: true }]
 
@@ -81,11 +85,21 @@ export const managementNav: NavGroup[] = [
   { label: 'Settings', to: '/management/settings', icon: SettingsIcon },
   { label: 'Audit Log', to: '/management/audit-log', icon: ScrollTextIcon }]
 
+},
+{
+  label: 'Bug Tracker',
+  items: [
+  { label: 'Overview', to: '/management/bug-tracker', icon: GaugeIcon },
+  { label: 'All Issues', to: '/management/bug-tracker/issues', icon: ListChecksIcon },
+  { label: 'My Issues', to: '/management/bug-tracker/my-issues', icon: UserCheckIcon },
+  { label: 'Report a Bug', to: '/management/bug-tracker/report', icon: AlertCircleIcon },
+  { label: 'Kanban Board', to: '/management/bug-tracker/board', icon: SquareKanbanIcon },
+  { label: 'QA Verification', to: '/management/bug-tracker/qa', icon: ClipboardCheckIcon },
+{ label: 'Reports', to: '/management/bug-tracker/reports', icon: BarChart3Icon }]
 }];
 
 
-export const employeeNav: NavGroup[] = [
-{
+export const employeeNav: NavGroup[] = [{
   label: 'Today',
   items: [
   { label: 'My Dashboard', to: '/employee/dashboard', icon: LayoutDashboardIcon },
@@ -116,6 +130,13 @@ export const employeeNav: NavGroup[] = [
   { label: 'Notifications', to: '/employee/notifications', icon: BellIcon, badgeKey: 'notifications' },
   { label: 'My Profile', to: '/employee/profile', icon: UserIcon }]
 
+},
+{
+  label: 'Bug Tracker',
+  items: [
+{ label: 'My Issues', to: '/employee/bug-tracker/my-issues', icon: UserCheckIcon },
+  { label: 'Report a Bug', to: '/employee/bug-tracker/report', icon: AlertCircleIcon },
+{ label: 'Kanban Board', to: '/employee/bug-tracker/board', icon: SquareKanbanIcon }]
 }];
 
 

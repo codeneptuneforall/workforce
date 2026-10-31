@@ -13,8 +13,16 @@ import { hashPassword } from './auth';
 import { config } from './config';
 import { connectDatabase, disconnectDatabase } from './db';
 import { toDocument } from './store';
+// Bug Tracker master data (employees/projects/teams) now comes from Workforce collections.
+// Only Bug Tracker transactional issue data is seeded.
+import { issues as btIssues } from '../src/bugTracker/data/issues';
 import {
   AuditModel,
+  BugTrackerEmployeeModel,
+  BugTrackerIssueModel,
+  BugTrackerNotificationModel,
+  BugTrackerProjectModel,
+  BugTrackerTeamModel,
   EmployeeModel,
   HolidayModel,
   LeaveModel,
@@ -24,8 +32,8 @@ import {
   ProjectModel,
   ReviewModel,
   SalaryModel,
-  SessionModel,
   SettingsModel,
+  SessionModel,
   TaskModel,
   TeamModel,
   TimesheetModel,
@@ -37,6 +45,11 @@ const resetOnly = process.argv.includes('--reset');
 
 async function wipe(): Promise<void> {
   await Promise.all([
+    BugTrackerEmployeeModel.deleteMany({}),
+    BugTrackerIssueModel.deleteMany({}),
+    BugTrackerNotificationModel.deleteMany({}),
+    BugTrackerProjectModel.deleteMany({}),
+    BugTrackerTeamModel.deleteMany({}),
     EmployeeModel.deleteMany({}),
     TeamModel.deleteMany({}),
     ProjectModel.deleteMany({}),
@@ -78,6 +91,10 @@ async function writeActivity(state: ReturnType<typeof buildInitialState>): Promi
   await PayslipModel.insertMany(state.payslips.map((p) => toDocument(p.id, p)));
   await NotificationModel.insertMany(state.notifications.map((n) => toDocument(n.id, n)));
   await AuditModel.insertMany(state.audit.map((a) => toDocument(a.id, a)));
+}
+
+async function writeBugTrackerData(): Promise<void> {
+  await BugTrackerIssueModel.insertMany(btIssues.map((i) => toDocument(i.id, i)));
 }
 
 async function writeUsers(withSampleStaff: boolean): Promise<void> {
@@ -154,6 +171,21 @@ async function writeUsers(withSampleStaff: boolean): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  const allowDestructive =
+    process.argv.includes('--confirm-destructive') ||
+    process.env.SEED_ALLOW_DESTRUCTIVE === 'true';
+
+  if (config.isProduction) {
+    console.error('[seed] REFUSED: seeding is disabled in production (NODE_ENV=production).');
+    process.exit(1);
+  }
+
+  if (!allowDestructive) {
+    console.error('[seed] REFUSED: destructive clean-install seeding requires an explicit opt-in.');
+    console.error('[seed] Re-run with --confirm-destructive or SEED_ALLOW_DESTRUCTIVE=true (development only).');
+    process.exit(1);
+  }
+
   await connectDatabase();
 
   if (resetOnly) {
@@ -171,6 +203,7 @@ async function main(): Promise<void> {
     const demo = buildInitialState();
     await writeMaster(demo);
     await writeActivity(demo);
+    await writeBugTrackerData();
     await writeUsers(true);
 
     console.log('[seed] demo installation written:');
