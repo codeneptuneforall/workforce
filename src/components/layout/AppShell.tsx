@@ -3,6 +3,8 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BellIcon, ChevronDownIcon, KeyRoundIcon, Loader2Icon, LogOutIcon, MenuIcon, RotateCcwIcon, UserIcon, XIcon } from 'lucide-react';
 import { employeeMobileTabs, employeeNav, managementMobileTabs, managementNav } from '../../data/navigation';
+
+const BUG_TRACKER_ENABLED = import.meta.env.VITE_BUG_TRACKER_ENABLED !== 'false';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import type { Role } from '@shared/types';
@@ -28,7 +30,7 @@ export function AppShell({ portal }: {portal: Role;}) {
   const groups = portal === 'management' ? managementNav : employeeNav;
   const visibleGroups = groups.
   map((g) => ({ ...g, items: g.items.filter((i) => !i.payrollOnly || user?.canManagePayroll) })).
-  filter((g) => g.items.length);
+  filter((g) => g.items.length && (BUG_TRACKER_ENABLED || g.label !== 'Bug Tracker'));
   const tabs = portal === 'management' ? managementMobileTabs : employeeMobileTabs;
   const audience = portal === 'management' ? 'management' : user?.employeeId ?? '';
   const unread = state.notifications.filter((n) => n.audience === audience && !n.read).length;
