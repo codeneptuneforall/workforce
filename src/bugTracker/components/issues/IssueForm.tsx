@@ -10,6 +10,21 @@ import { TextField } from '../ui/TextField';
 import { AttachmentField } from './AttachmentField';
 import { LabelPicker } from './LabelPicker';
 
+
+function pillCls(value: string, selected: boolean): string {
+  const map: Record<string, {sel: string; unsel: string}> = {
+    Critical: { sel: 'border-danger bg-danger text-white', unsel: 'border-danger-line bg-danger-soft text-danger-ink hover:bg-danger-soft/80' },
+    High: { sel: 'border-warning bg-warning text-white', unsel: 'border-warning-line bg-warning-soft text-warning-ink hover:bg-warning-soft/80' },
+    Medium: { sel: 'border-info bg-info text-white', unsel: 'border-info-line bg-info-soft text-info-ink hover:bg-info-soft/80' },
+    Low: { sel: 'border-line bg-neutral-soft text-neutral-ink', unsel: 'border-line bg-neutral-soft text-neutral-ink hover:bg-neutral-soft/80' },
+    Urgent: { sel: 'border-danger bg-danger text-white', unsel: 'border-danger-line bg-danger-soft text-danger-ink hover:bg-danger-soft/80' },
+    Normal: { sel: 'border-info bg-info text-white', unsel: 'border-info-line bg-info-soft text-info-ink hover:bg-info-soft/80' },
+  };
+  const c = map[value] || { sel: 'border-accent bg-accent text-white', unsel: 'border-line-strong bg-surface text-ink-muted hover:bg-canvas' };
+  return selected ? c.sel : c.unsel;
+}
+
+
 interface IssueFormProps {
   draft: IssueDraft;
   errors: IssueFormErrors;
@@ -95,7 +110,7 @@ export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: Issue
               <p className="mb-1.5 text-[13px] font-medium text-ink">Severity <span className="ml-0.5 text-danger">*</span></p>
               <div className="flex flex-wrap gap-2">
                 {severities.map((s) => (
-                  <button key={s} type="button" onClick={() => setField('severity', s)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors duration-150 ${draft.severity === s ? 'border-accent bg-accent text-white' : 'border-line-strong bg-surface text-ink-muted hover:bg-canvas'}`}>
+                  <button key={s} type="button" onClick={() => setField('severity', s)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors duration-150 ${pillCls(s, draft.severity === s)}`}>
                     {s}
                   </button>
                 ))}
@@ -106,7 +121,7 @@ export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: Issue
               <p className="mb-1.5 text-[13px] font-medium text-ink">Priority <span className="ml-0.5 text-danger">*</span></p>
               <div className="flex flex-wrap gap-2">
                 {priorities.map((p) => (
-                  <button key={p} type="button" onClick={() => setField('priority', p)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors duration-150 ${draft.priority === p ? 'border-accent bg-accent text-white' : 'border-line-strong bg-surface text-ink-muted hover:bg-canvas'}`}>
+                  <button key={p} type="button" onClick={() => setField('priority', p)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors duration-150 ${pillCls(p, draft.priority === p)}`}>
                     {p}
                   </button>
                 ))}
