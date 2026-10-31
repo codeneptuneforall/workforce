@@ -153,6 +153,7 @@ export interface AppNotification {
   title: string;
   body: string;
   issueKey?: string;
+  link?: string;
   createdAt: string;
   read: boolean;
 }

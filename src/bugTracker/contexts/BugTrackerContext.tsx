@@ -113,6 +113,21 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     return filtered.length ? filtered : projects;
   }, [currentUser, projects]);
 
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const notifRes = await bugTrackerApi.getNotifications();
+      const mapped = (notifRes.notifications ?? []).map((n: any) => {
+        if (n.issueKey) return n;
+        const link = n.link || '';
+        const mm = link.match(/\/issues\/([^/?#]+)/);
+        return mm ? { ...n, issueKey: mm[1] } : n;
+      });
+      setNotifications(mapped);
+    } catch (err) {
+      console.error('[bugTracker] notification refresh failed', err);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -148,7 +163,14 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
         }
         setProjects(projects);
         setTeams(teamRes.teams ?? []);
-        setNotifications(notifRes.notifications ?? []);
+        const mapped = (notifRes.notifications ?? []).map((n: any) => {
+          if (n.issueKey) return n;
+          // Workforce notifications carry a `link` like /bug-tracker/issues/WF-123
+          const link = n.link || '';
+          const m = link.match(/\/issues\/([^/?#]+)/);
+          return m ? { ...n, issueKey: m[1] } : n;
+        });
+        setNotifications(mapped);
       } catch (err) {
         console.error('[bugTracker] initial data load failed', err);
       } finally {
@@ -170,6 +192,11 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     })();
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => { refreshNotifications(); }, 30000);
+    return () => window.clearInterval(id);
+  }, [refreshNotifications]);
 
   const visibleIssues = useMemo(() => issues.filter((i) => canViewIssue(i, currentUser)), [issues, currentUser]);
   const scopedIssues = useMemo(
