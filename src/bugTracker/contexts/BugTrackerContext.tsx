@@ -103,13 +103,14 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
 
   const permissions = rolePermissions[role];
   const accessibleProjects = useMemo(() => {
-    // Admin/manager without a linked BugTrackerEmployee directory record has
-    // no projectIds on the fallback workforce identity; they oversee all
-    // projects. Role-linked employees see only their assigned projects.
+    // Users with no project memberships (e.g. management) oversee all projects.
     if (currentUser.projectIds.length === 0) {
       return projects;
     }
-    return projects.filter((p) => currentUser.projectIds.includes(p.id));
+    const filtered = projects.filter((p) => currentUser.projectIds.includes(p.id));
+    // Fall back to all projects if the membership list is stale/empty-match,
+    // so dropdowns are never blank.
+    return filtered.length ? filtered : projects;
   }, [currentUser, projects]);
 
   useEffect(() => {
