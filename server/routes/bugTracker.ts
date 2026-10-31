@@ -648,9 +648,6 @@ bugTrackerRouter.get('/issues/:key/attachments/download', issueLimiter, async (_
 
 /** Employee directory for bug tracker � uses existing Workforce employee data. */
 bugTrackerRouter.get('/employees', issueLimiter, async (_req, res) => {
-  const context = await getBugTrackerContext(_req.user!);
-  if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
-
   const wfEmployees = await EmployeeModel.find({ status: 'Active' }).sort({ name: 1 }).lean();
   const projects = await ProjectModel.find({}).lean();
   const allUsers = await UserModel.find({ active: true }).lean();
@@ -711,8 +708,6 @@ bugTrackerRouter.get('/employees', issueLimiter, async (_req, res) => {
 
 /** Projects for bug tracker � uses Workforce project data. */
 bugTrackerRouter.get('/projects', issueLimiter, async (_req, res) => {
-  const context = await getBugTrackerContext(_req.user!);
-  if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
   const projects = await ProjectModel.find({}).sort({ name: 1 }).lean();
   const mapped = projects.map((p: any) => ({
     id: p._id,
@@ -725,8 +720,6 @@ bugTrackerRouter.get('/projects', issueLimiter, async (_req, res) => {
 
 /** Teams for bug tracker � uses Workforce team data. */
 bugTrackerRouter.get('/teams', issueLimiter, async (_req, res) => {
-  const context = await getBugTrackerContext(_req.user!);
-  if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
   const teams = await TeamModel.find({}).sort({ name: 1 }).lean();
   const mapped = teams.map((t: any) => ({
     id: t._id,
