@@ -125,7 +125,28 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
         ]);
         if (!mounted) return;
         setEmployees(empRes.employees ?? []);
-        setProjects(projRes.projects ?? []);
+        let projects = projRes.projects ?? [];
+        // Fallback to the verified Workforce state source if the bug-tracker
+        // endpoint returns nothing (e.g. split deployment / stale backend).
+        if (!projects.length) {
+          try {
+            const apiBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+            const stateRes = await fetch(`${apiBase}/api/state`, { credentials: 'include' });
+            if (stateRes.ok) {
+              const stateData = await stateRes.json();
+              const wfProjects = stateData?.state?.projects ?? [];
+              projects = wfProjects.map((p: any) => ({
+                id: p.id ?? p._id,
+                name: p.name,
+                code: p.code,
+                leadId: p.managerId ?? p.leadId
+              }));
+            }
+          } catch (e) {
+            console.error('[bugTracker] state fallback failed', e);
+          }
+        }
+        setProjects(projects);
         setTeams(teamRes.teams ?? []);
         setNotifications(notifRes.notifications ?? []);
       } catch (err) {
