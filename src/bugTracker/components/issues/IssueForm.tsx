@@ -90,9 +90,29 @@ export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: Issue
           <h2 className="text-sm font-semibold text-ink">Classification</h2>
           <SelectField id="project" label="Project" required placeholder="Select project" value={draft.projectId} onChange={(v) => setField('projectId', v)} options={accessibleProjects.map((p) => ({ value: p.id, label: p.name }))} error={errors.projectId} />
           <SelectField id="type" label="Issue type" required placeholder="Select type" value={draft.type} onChange={(v) => setField('type', v as IssueDraft['type'])} options={opts(issueTypes)} error={errors.type} />
-          <div className="grid grid-cols-2 gap-3">
-            <SelectField id="severity" label="Severity" required placeholder="Select" value={draft.severity} onChange={(v) => setField('severity', v as IssueDraft['severity'])} options={opts(severities)} error={errors.severity} />
-            <SelectField id="priority" label="Priority" required placeholder="Select" value={draft.priority} onChange={(v) => setField('priority', v as IssueDraft['priority'])} options={opts(priorities)} error={errors.priority} />
+          <div className="space-y-3">
+            <div>
+              <p className="mb-1.5 text-[13px] font-medium text-ink">Severity <span className="ml-0.5 text-danger">*</span></p>
+              <div className="flex flex-wrap gap-2">
+                {severities.map((s) => (
+                  <button key={s} type="button" onClick={() => setField('severity', s)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors duration-150 ${draft.severity === s ? 'border-accent bg-accent text-white' : 'border-line-strong bg-surface text-ink-muted hover:bg-canvas'}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {errors.severity && <p className="mt-1 text-xs text-danger-ink">{errors.severity}</p>}
+            </div>
+            <div>
+              <p className="mb-1.5 text-[13px] font-medium text-ink">Priority <span className="ml-0.5 text-danger">*</span></p>
+              <div className="flex flex-wrap gap-2">
+                {priorities.map((p) => (
+                  <button key={p} type="button" onClick={() => setField('priority', p)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors duration-150 ${draft.priority === p ? 'border-accent bg-accent text-white' : 'border-line-strong bg-surface text-ink-muted hover:bg-canvas'}`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+              {errors.priority && <p className="mt-1 text-xs text-danger-ink">{errors.priority}</p>}
+            </div>
           </div>
           <div>
             <p className="mb-1.5 text-[13px] font-medium text-ink">Labels</p>
