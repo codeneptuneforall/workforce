@@ -13,6 +13,7 @@ import { authRouter } from './routes/auth';
 import uploadRouter from './routes/upload';
 import { bugTrackerRouter } from './routes/bugTracker';
 import { io } from './socket';
+import { startAutoSubmitCron } from './cron/autoSubmitTimesheets';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(dir, '../dist/client');
@@ -117,6 +118,9 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 async function start(): Promise<void> {
   await connectDatabase();
+  // Auto-submit timesheets for ended weeks (runs immediately on startup, then
+  // every Saturday at 00:00).
+  startAutoSubmitCron();
   // Bind to all interfaces: hosted platforms (Render, Railway, Koyeb, Fly) reach
   // the container from outside, so 127.0.0.1 would be unreachable.
   httpServer.listen(config.port, '0.0.0.0', () => {
