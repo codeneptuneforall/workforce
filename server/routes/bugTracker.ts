@@ -178,9 +178,9 @@ async function writeAuditEntry(user: AuthUser, action: string, entity: string, e
 }
 
 async function createBtNotification(recipientId: string, title: string, body: string, issueKey?: string): Promise<void> {
-  await new NotificationModel({
+  await new BugTrackerNotificationModel({
     _id: `bt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-    audience: recipientId,
+    recipientId,
     title,
     body,
     link: issueKey ? `/bug-tracker/issues/${issueKey}` : undefined,
@@ -347,10 +347,7 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
   // Notify assignee if one was set, plus management users for triage.
   const reporterName = _req.user!.name;
   if (body.assigneeId) {
-    const assigneeUser = await workforceUserForBtId(String(body.assigneeId));
-    if (assigneeUser?._id) {
-      try { await createBtNotification(assigneeUser._id, 'Assigned to you', `${key} ${issue.title}`, key); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
-    }
+    try { await createBtNotification(String(body.assigneeId), 'Assigned to you', `${key} ${issue.title}`, key); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
   }
   const managers = await UserModel.find({ role: 'management', active: true }).lean();
   for (const m of managers as any[]) {
@@ -472,27 +469,20 @@ bugTrackerRouter.post('/issues/:key/transition', issueLimiter, async (_req, res)
 
   try { await writeAuditEntry(_req.user!, `Issue transitioned: ${transitionId}`, 'BugTrackerIssue', issue.key, previousStatus, toStatus); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
 
-  // Notifications on transition outcomes.
-  const reporterUser = await workforceUserForBtId(issue.reporterId);
-  const assigneeUser = issue.assigneeId ? await workforceUserForBtId(issue.assigneeId) : null;
+  // Notifications on transition outcomes. Recipients are employee IDs (matching frontend currentUser.id).
   if (transitionId === 'submit-qa') {
     const wfEmployees = await EmployeeModel.find({ status: 'Active' }).lean();
-    const qaUsers: any[] = [];
     for (const e of wfEmployees as any[]) {
       const d = String(e.designation || '').toLowerCase();
       if (d.includes('qa') || d.includes('quality')) {
-        const u = await UserModel.findOne({ employeeId: e._id, active: true }).lean();
-        if (u) qaUsers.push(u);
+        try { await createBtNotification(e._id, 'Ready for QA', `${issue.key} ${issue.title}`, issue.key); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
       }
-    }
-    for (const q of qaUsers) {
-      try { await createBtNotification(q._id, 'Ready for QA', `${issue.key} ${issue.title}`, issue.key); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
     }
   }
   if (transitionId === 'pass-qa' || transitionId === 'fail-qa' || transitionId === 'reopen') {
     const recipients = new Set<string>();
-    if (reporterUser?._id) recipients.add(reporterUser._id);
-    if (assigneeUser?._id) recipients.add(assigneeUser._id);
+    if (issue.reporterId) recipients.add(issue.reporterId);
+    if (issue.assigneeId) recipients.add(issue.assigneeId);
     for (const rid of recipients) {
       try { await createBtNotification(rid, transitionId === 'pass-qa' ? 'Fix verified' : 'Issue reopened', `${issue.key} ${issue.title}`, issue.key); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
     }
@@ -527,18 +517,10 @@ bugTrackerRouter.post('/issues/:key/comments', commentLimiter, async (_req, res)
 
   // Notify assignee and reporter of new comment.
   const recipients = new Set<string>();
-  if (issue.assigneeId) {
-    const aUser = await workforceUserForBtId(issue.assigneeId);
-    if (aUser?._id) recipients.add(aUser._id);
-  }
-  if (issue.reporterId) {
-    const rUser = await workforceUserForBtId(issue.reporterId);
-    if (rUser?._id) recipients.add(rUser._id);
-  }
+  if (issue.assigneeId) recipients.add(issue.assigneeId);
+  if (issue.reporterId) recipients.add(issue.reporterId);
   for (const rid of recipients) {
-    if (rid !== _req.user!.id) {
-      try { await createBtNotification(rid, 'New comment', `${issue.key}: ${comment.body}`, issue.key); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
-    }
+    try { await createBtNotification(rid, 'New comment', `${issue.key}: ${comment.body}`, issue.key); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
   }
 
   res.status(201).json({ comment });

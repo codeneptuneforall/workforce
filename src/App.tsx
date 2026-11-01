@@ -141,6 +141,7 @@ export function App() {
                 <Route path="bug-tracker" element={<BugTrackerProvider><Outlet /></BugTrackerProvider>}>
                   <Route index element={<MyIssues />} />
                   <Route path="my-issues" element={<MyIssues />} />
+                  <Route path="issues/:issueKey" element={<IssueDetail />} />
                   <Route path="report" element={<ReportBug />} />
                   <Route path="board" element={<Kanban />} />
                 </Route>
