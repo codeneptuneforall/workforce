@@ -5,6 +5,7 @@ import { addDays, addMonths, endOfDay, format, isSameDay, isSameMonth, startOfDa
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { controlClass } from './Field';
+import { Select } from './Dropdown';
 import { fromDateKey, toDateKey, todayKey } from '@shared/domain/time';
 
 /**
@@ -163,25 +164,24 @@ export function DatePicker({
           <ChevronLeftIcon className="h-4 w-4" />
         </button>
         <div className="flex items-center gap-2">
-          <select
+          <Select
             aria-label="Year"
             value={viewMonth.getFullYear()}
             onChange={(e) => setViewMonth(startOfMonth(new Date(Number(e.target.value), viewMonth.getMonth(), 1)))}
-            className="text-xs font-semibold text-ink bg-transparent border-none focus:ring-0 cursor-pointer">
-            {[...Array(120).keys()].map((i) => {
-              const year = 1900 + i;
-              return <option key={year} value={year}>{year}</option>;
-            })}
-          </select>
-          <select
+            className="h-8 w-20 text-xs">
+            {Array.from({ length: 11 }, (_, i) => 2023 + i).map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </Select>
+          <Select
             aria-label="Month"
             value={viewMonth.getMonth()}
             onChange={(e) => setViewMonth(startOfMonth(new Date(viewMonth.getFullYear(), Number(e.target.value), 1)))}
-            className="text-xs font-medium text-ink bg-transparent border-none focus:ring-0 cursor-pointer">
+            className="h-8 w-24 text-xs">
             {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
               <option key={i} value={i}>{m}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <button type="button" onClick={() => setViewMonth((m) => addMonths(m, 1))} aria-label="Next month"
         className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
