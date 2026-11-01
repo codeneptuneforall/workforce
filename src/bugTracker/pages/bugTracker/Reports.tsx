@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { InfoIcon, TrendingDownIcon } from 'lucide-react';
+import { InfoIcon } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CreatedResolvedChart } from '../../components/charts/CreatedResolvedChart';
 import { IssuesByProjectChart } from '../../components/charts/IssuesByProjectChart';
@@ -9,7 +9,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel } from '../../components/ui/Panel';
 import { SelectField } from '../../components/ui/SelectField';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
-import { resolutionKpis, weeklyIssueTrend } from '../../data/reports';
+// Sample trend/KPI data removed; values are now derived from real issues.
 import { severities } from '../../data/trackerConfig';
 import { isOverdue } from '../../utils/issueMetrics';
 import { severityStyles } from '../../utils/issueStyles';
@@ -26,7 +26,29 @@ export function Reports() {
   const [weeks, setWeeks] = useState('8');
 
   const open = scopedIssues.filter((i) => isOpenStatus(i.status));
-  const trend = weeklyIssueTrend.slice(-Number(weeks));
+  // Derive weekly created/resolved trend from real issues (no sample data).
+  const trend = useMemo(() => {
+    const buckets = new Map<string, { week: string; created: number; resolved: number }>();
+    const weekKey = (iso: string) => {
+      const d = new Date(iso);
+      const day = d.getDay() || 7;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - (day - 1));
+      return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+    };
+    for (const i of scopedIssues) {
+      const wk = weekKey(i.createdAt);
+      if (!buckets.has(wk)) buckets.set(wk, { week: wk.slice(5), created: 0, resolved: 0 });
+      buckets.get(wk)!.created++;
+      if (!isOpenStatus(i.status)) {
+        const rwk = weekKey(i.updatedAt || i.createdAt);
+        if (!buckets.has(rwk)) buckets.set(rwk, { week: rwk.slice(5), created: 0, resolved: 0 });
+        buckets.get(rwk)!.resolved++;
+      }
+    }
+    const sorted = [...buckets.values()].sort((a, b) => a.week.localeCompare(b.week));
+    return sorted.slice(-Number(weeks));
+  }, [scopedIssues, weeks]);
 
   const severityData = severities.map((s) => ({ name: s, value: open.filter((i) => i.severity === s).length, fill: severityStyles[s].hex }));
   const projectData = useMemo(
@@ -55,18 +77,24 @@ export function Reports() {
 
   if (!permissions.viewReports) return <AccessRestricted area="Reports & Analytics" />;
 
+  const resolvedIssues = scopedIssues.filter((i) => !isOpenStatus(i.status));
+  const reopenedCount = scopedIssues.filter((i) => i.status === 'Reopened').length;
+  const avgResolutionDays = resolvedIssues.length
+    ? (resolvedIssues.reduce((acc, i) => {
+        const created = new Date(i.createdAt).getTime();
+        const resolved = new Date((i as any).resolution?.resolvedAt || i.updatedAt).getTime();
+        return acc + Math.max(0, (resolved - created) / 86400000);
+      }, 0) / resolvedIssues.length).toFixed(1)
+    : '—';
+  const reopenRate = resolvedIssues.length ? ((reopenedCount / resolvedIssues.length) * 100).toFixed(1) : '0.0';
+
   const kpis = [
   {
     label: 'Average resolution time',
-    value: `${resolutionKpis.averageResolutionDays} days`,
-    note:
-    <span className="inline-flex items-center gap-1 text-success-ink">
-          <TrendingDownIcon className="h-3.5 w-3.5" aria-hidden="true" />
-          from {resolutionKpis.previousAverageResolutionDays} days · {resolutionKpis.periodLabel}
-        </span>
-
+    value: `${avgResolutionDays} days`,
+    note: <span className="inline-flex items-center gap-1 text-success-ink">{resolvedIssues.length} resolved issues</span>
   },
-  { label: 'Reopened issue rate', value: `${resolutionKpis.reopenRate}%`, note: `${resolutionKpis.reopenedCount} of ${resolutionKpis.resolvedCount} resolved · ${resolutionKpis.periodLabel}` },
+  { label: 'Reopened issue rate', value: `${reopenRate}%`, note: `${reopenedCount} of ${resolvedIssues.length} resolved` },
   { label: 'Open issues', value: String(open.length), note: `${open.filter((i) => i.severity === 'Critical').length} critical` },
   { label: 'Overdue issues', value: String(overdueList.length), note: overdueList.length ? overdueList.map((i) => i.key).join(', ') : 'None overdue', danger: overdueList.length > 0 }];
 
@@ -95,7 +123,7 @@ export function Reports() {
 
       <p className="flex items-start gap-2 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink-subtle">
         <InfoIcon className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        Created/resolved trend, average resolution time and reopen rate are fixed sample values for this prototype. Counts by severity, project, workload and overdue reflect the sample issues{projectScope !== 'all' ? ` in ${getProject(projectScope)?.name}` : ''}.
+        All metrics, trends and workload reflect the current issues{projectScope !== 'all' ? ` in ${getProject(projectScope)?.name}` : ''}.
       </p>
 
       <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-card sm:grid-cols-2 xl:grid-cols-4">

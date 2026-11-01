@@ -169,7 +169,7 @@ export function DatePicker({
             value={viewMonth.getFullYear()}
             onChange={(e) => setViewMonth(startOfMonth(new Date(Number(e.target.value), viewMonth.getMonth(), 1)))}
             className="h-8 w-20 text-xs">
-            {Array.from({ length: 11 }, (_, i) => 2023 + i).map((year) => (
+            {Array.from({ length: new Date().getFullYear() - 2023 + 1 }, (_, i) => 2023 + i).map((year) => (
               <option key={year} value={year}>{year}</option>
             ))}
           </Select>

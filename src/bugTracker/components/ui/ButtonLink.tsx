@@ -11,7 +11,7 @@ interface ButtonLinkProps {
 }
 
 const variants = {
-  primary: 'bg-accent text-white hover:bg-accent-hover',
+  primary: 'bg-brand-700 text-white hover:bg-brand-800',
   secondary: 'bg-surface text-ink border border-line-strong hover:bg-canvas'
 };
 
