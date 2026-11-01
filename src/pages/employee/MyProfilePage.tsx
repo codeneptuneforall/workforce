@@ -14,7 +14,7 @@ import { cmd } from '../../utils/commands';
 
 export function MyProfilePage() {
   const emp = useCurrentEmployee();
-  const { state, team, personName } = useData();
+  const { state, team, personName, refresh } = useData();
   const { logout } = useAuth();
   const { mutate, error } = useMutation();
 
@@ -23,7 +23,8 @@ export function MyProfilePage() {
     const updated = { ...emp, photoUrl: url };
     const ok = await mutate(cmd.saveEmployee(updated), 'Profile picture updated');
     if (!ok) return; // Don't reload if save failed — error is shown by DataContext
-    window.location.reload();
+    // Refresh local state so the new photo shows immediately without a page reload.
+    await refresh();
   };
 
   return (
