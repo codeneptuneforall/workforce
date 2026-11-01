@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { requireAuth } from '../auth';
 import type { AuthUser } from '../../shared/types';
+import { io } from '../socket';
 import {
   AuditModel,
   BugTrackerIssueModel,
@@ -359,6 +360,7 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
   }
 
   res.status(201).json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  io.emit('issue:created', toApiIssue(issue.toObject({ virtuals: true })));
 });
 
 /** Update an issue field(s) � edit permission checked server-side. */
@@ -397,6 +399,7 @@ bugTrackerRouter.patch('/issues/:key', issueLimiter, async (_req, res) => {
   }
 
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
 });
 
 /** Workflow transition � role and state validated server-side. */
@@ -491,6 +494,7 @@ bugTrackerRouter.post('/issues/:key/transition', issueLimiter, async (_req, res)
   }
 
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  io.emit('issue:transitioned', toApiIssue(issue.toObject({ virtuals: true })));
 });
 
 /** Add a comment � any authenticated user may comment on a visible issue. */
@@ -526,6 +530,8 @@ bugTrackerRouter.post('/issues/:key/comments', commentLimiter, async (_req, res)
   }
 
   res.status(201).json({ comment });
+  io.emit('issue:commented', { issueKey: _req.params.key, comment });
+  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
 });
 
 /** Add attachments (JSON payload) to an issue. */
@@ -544,6 +550,7 @@ bugTrackerRouter.post('/issues/:key/attachments', uploadLimiter, async (_req, re
   issue.updatedAt = new Date().toISOString();
   await issue.save();
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
 });
 
 /** Upload a file attachment to an issue (multipart). */
@@ -583,6 +590,7 @@ bugTrackerRouter.post('/issues/:key/attachments/upload', uploadLimiter, btUpload
   try { await writeAuditEntry(_req.user!, 'Attachment uploaded', 'BugTrackerIssue', issue.key, undefined, file.originalname); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
 
   res.status(201).json({ attachment });
+  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
 });
 
 /** Download/preview a file attachment � authenticated, authorization-checked.

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { io, type Socket } from 'socket.io-client';
 import type * as React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { bugTrackerApi } from '../api/bugTrackerApi';
@@ -221,6 +222,61 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     poll();
     return () => window.clearInterval(id);
   }, [refreshIssues]);
+
+  // Socket.io: push issue updates instantly (sub-second) without polling.
+  useEffect(() => {
+    const apiBase = (import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+    const socket = io(apiBase, {
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+    });
+
+    socket.on('connect', () => {
+      console.log('[bugTracker] socket connected');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[bugTracker] socket disconnected');
+    });
+
+    socket.on('connect_error', (err: Error) => {
+      console.error('[bugTracker] socket connect error', err.message);
+    });
+
+    // New issue created by anyone
+    socket.on('issue:created', (issue: Issue) => {
+      setIssues((prev) => {
+        if (prev.some((i) => i.id === issue.id)) return prev;
+        return [issue, ...prev];
+      });
+    });
+
+    // Issue fields updated (edit, assign, priority, etc.)
+    socket.on('issue:updated', (issue: Issue) => {
+      setIssues((prev) => prev.map((i) => i.id === issue.id ? issue : i));
+    });
+
+    // Status transition (start, submit-qa, pass-qa, etc.)
+    socket.on('issue:transitioned', (issue: Issue) => {
+      setIssues((prev) => prev.map((i) => i.id === issue.id ? issue : i));
+    });
+
+    // New comment added
+    socket.on('issue:commented', (data: { issueKey: string; comment: any }) => {
+      setIssues((prev) => prev.map((i) => {
+        if (i.id !== data.issueKey && i.key !== data.issueKey) return i;
+        return {
+          ...i,
+          updatedAt: new Date().toISOString(),
+          comments: [...i.comments, data.comment],
+        };
+      }));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => { refreshNotifications(); }, 30000);

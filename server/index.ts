@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
@@ -11,11 +12,14 @@ import { apiRouter } from './routes/api';
 import { authRouter } from './routes/auth';
 import uploadRouter from './routes/upload';
 import { bugTrackerRouter } from './routes/bugTracker';
+import { io } from './socket';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(dir, '../dist/client');
 
 const app = express();
+const httpServer = createServer(app);
+io.attach(httpServer);
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
@@ -115,7 +119,7 @@ async function start(): Promise<void> {
   await connectDatabase();
   // Bind to all interfaces: hosted platforms (Render, Railway, Koyeb, Fly) reach
   // the container from outside, so 127.0.0.1 would be unreachable.
-  app.listen(config.port, '0.0.0.0', () => {
+  httpServer.listen(config.port, '0.0.0.0', () => {
     console.log(`[server] workforce API listening on http://0.0.0.0:${config.port}`);
     if (config.serveClient) console.log(`[server] serving client from ${clientDir}`);
   });
