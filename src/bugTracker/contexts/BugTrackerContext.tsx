@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type * as React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { bugTrackerApi } from '../api/bugTrackerApi';
@@ -82,6 +82,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
   const [loading, setLoading] = useState(true);
 
   const employeeMap = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees]);
+  const mountedRef = useRef(true);
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
   const currentUser = useMemo(() => {
@@ -129,7 +130,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
     (async () => {
       try {
         const [empRes, projRes, teamRes, notifRes] = await Promise.all([
@@ -138,7 +139,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
           bugTrackerApi.getTeams(),
           bugTrackerApi.getNotifications()
         ]);
-        if (!mounted) return;
+        if (!mountedRef.current) return;
         setEmployees(empRes.employees ?? []);
         let projects = projRes.projects ?? [];
         // Fallback to the verified Workforce state source if the bug-tracker
@@ -174,24 +175,52 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       } catch (err) {
         console.error('[bugTracker] initial data load failed', err);
       } finally {
-        if (mounted) setLoading(false);
+        if (mountedRef.current) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const refreshIssues = useCallback(async (): Promise<void> => {
+    try {
+      const res = await bugTrackerApi.getIssues();
+      if (!mountedRef.current) return;
+      const incoming = res.issues ?? [];
+      setIssues((prev) => {
+        const byId = new Map(prev.map((i) => [i.id, i]));
+        for (const issue of incoming) {
+          byId.set(issue.id, issue);
+        }
+        return Array.from(byId.values());
+      });
+    } catch (err) {
+      console.error('[bugTracker] issues refresh failed', err);
+    }
   }, []);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
     (async () => {
       try {
         const res = await bugTrackerApi.getIssues();
-        if (mounted) setIssues(res.issues ?? []);
+        if (mountedRef.current) setIssues(res.issues ?? []);
       } catch (err) {
         console.error('[bugTracker] issues load failed', err);
       }
     })();
-    return () => { mounted = false; };
+    return () => { mountedRef.current = false; };
   }, []);
+
+  // Poll for issue changes so every screen sees live status updates
+  // from other users without a manual page refresh.
+  useEffect(() => {
+    const poll = async () => {
+      if (document.visibilityState === 'visible') await refreshIssues();
+    };
+    const id = window.setInterval(poll, 15000);
+    poll();
+    return () => window.clearInterval(id);
+  }, [refreshIssues]);
 
   useEffect(() => {
     const id = window.setInterval(() => { refreshNotifications(); }, 30000);
@@ -233,12 +262,13 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (!issue) return null;
       setIssues((prev) => [issue, ...prev]);
       notify([draft.assigneeId], 'Assigned to you', `${issue.key} ${issue.title}`, issue.key);
+      await refreshIssues();
       return issue;
     } catch (err: any) {
       console.error('[bugTracker] createIssue failed', err);
       throw new Error(err.message || 'Failed to report issue');
     }
-  }, [notify]);
+  }, [notify, refreshIssues]);
 
   const updateIssue = useCallback(async (id: string, patch: IssueEditablePatch): Promise<void> => {
     try {
@@ -248,10 +278,11 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (res.issue) {
         setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
       }
+      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] updateIssue failed', err);
     }
-  }, [issues]);
+  }, [issues, refreshIssues]);
 
   const assignIssue = useCallback(async (id: string, { assigneeId, dueDate, priority }: AssignOptions): Promise<void> => {
     try {
@@ -271,11 +302,12 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       } else {
         toast.error('Failed to assign issue. Please try again.');
       }
+      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] assignIssue failed', err);
       throw err;
     }
-  }, [issues, employeeMap, notify]);
+  }, [issues, employeeMap, notify, refreshIssues]);
 
   const runTransition = useCallback(async (id: string, transitionId: TransitionId, note?: string): Promise<void> => {
     try {
@@ -286,6 +318,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (res.issue) {
         setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
       }
+      await refreshIssues();
       const label = `${target.key} ${target.title}`;
       if (transitionId === 'submit-qa') notify(['emp-sneha', 'emp-vikram'], 'Ready for QA', label, target.key);
       if (transitionId === 'fail-qa' || transitionId === 'reopen') notify([target.assigneeId, target.reporterId], 'Issue reopened', label, target.key);
@@ -294,7 +327,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       console.error('[bugTracker] runTransition failed', err);
       throw err;
     }
-  }, [issues, notify]);
+  }, [issues, notify, refreshIssues]);
 
   const addComment = useCallback(async (id: string, body: string, kind: CommentKind): Promise<void> => {
     try {
@@ -308,10 +341,11 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
           comments: [...i.comments, res.comment as any]
         }) : i));
       }
+      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] addComment failed', err);
     }
-  }, [issues]);
+  }, [issues, refreshIssues]);
 
   const addAttachments = useCallback(async (id: string, attachments: Attachment[]): Promise<void> => {
     try {
@@ -321,10 +355,11 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (res.issue) {
         setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
       }
+      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] addAttachments failed', err);
     }
-  }, [issues]);
+  }, [issues, refreshIssues]);
 
   const markNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n: AppNotification) => n.recipientId === currentUser.id ? { ...n, read: true } : n));

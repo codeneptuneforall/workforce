@@ -34,7 +34,9 @@ export function IssueDetail() {
   const [issueFromApi, setIssueFromApi] = useState<Issue | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const localIssue = getIssueByKey(issueKey);
-  const issue = issueFromApi ?? localIssue;
+  // Prefer live context data (polled every 15s) so status changes from anyone
+  // reflect without a page refresh. Fall back to one-time API fetch.
+  const issue = localIssue ?? issueFromApi;
 
   useEffect(() => {
     if (!localIssue && issueKey) {
