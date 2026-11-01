@@ -29,11 +29,18 @@ export function ReportBug() {
       document.getElementById(idMap[firstError] ?? firstError)?.focus();
       return;
     }
-    const issue = await createIssue(form.draft);
+    let issue: Issue | null = null;
+    try {
+      issue = await createIssue(form.draft);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to report the issue. Please try again.');
+      return;
+    }
     if (!issue) {
       toast.error('Failed to report the issue. Please try again.');
       return;
     }
+    setCreated(issue);
     setCreated(issue);
     toast.success(`${issue.key} added to the tracker`, { description: 'Stored in the Workforce database.' });
   };

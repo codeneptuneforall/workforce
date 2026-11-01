@@ -234,9 +234,9 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       setIssues((prev) => [issue, ...prev]);
       notify([draft.assigneeId], 'Assigned to you', `${issue.key} ${issue.title}`, issue.key);
       return issue;
-    } catch (err) {
+    } catch (err: any) {
       console.error('[bugTracker] createIssue failed', err);
-      return null;
+      throw new Error(err.message || 'Failed to report issue');
     }
   }, [notify]);
 
