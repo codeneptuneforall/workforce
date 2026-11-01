@@ -25,6 +25,8 @@ import {
   setTaskStatus,
   copyHolidayYear,
   deleteHoliday,
+  deleteNotifications,
+  archiveNotifications,
   publishHolidayYear,
   updateSettings } from './recordMutations';
 import { fail, withAudit } from './stateHelpers';
@@ -364,6 +366,28 @@ const commands: Record<string, CommandDefinition> = {
         ...ctx.state,
         notifications: ctx.state.notifications.map((n) => (target.includes(n.id) ? { ...n, read: true } : n))
       };
+    }
+  },
+  'notification.delete': {
+    scope: 'employee',
+    handler: (ctx, args) => {
+      const ids: string[] = Array.isArray(args.ids) ? args.ids : [];
+      const audience = ctx.user.role === 'management' ? 'management' : ctx.user.employeeId ?? '';
+      const own = new Set(ctx.state.notifications.filter((n) => n.audience === audience).map((n) => n.id));
+      const target = ids.filter((id) => own.has(id));
+      if (!target.length) return fail('No notifications found.');
+      return deleteNotifications(ctx.state, target, ctx.actor, ctx.now);
+    }
+  },
+  'notification.archive': {
+    scope: 'employee',
+    handler: (ctx, args) => {
+      const ids: string[] = Array.isArray(args.ids) ? args.ids : [];
+      const audience = ctx.user.role === 'management' ? 'management' : ctx.user.employeeId ?? '';
+      const own = new Set(ctx.state.notifications.filter((n) => n.audience === audience).map((n) => n.id));
+      const target = ids.filter((id) => own.has(id));
+      if (!target.length) return fail('No notifications found.');
+      return archiveNotifications(ctx.state, target, ctx.actor, ctx.now);
     }
   }
 };

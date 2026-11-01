@@ -127,6 +127,32 @@ export function updateSettings(s: AppState, patch: Partial<Settings>, section: s
   return withAudit({ ...s, settings: { ...s.settings, ...patch } }, now, { actor, action: `${section} settings updated`, entity: 'Settings', entityId: section, previous: prevVals, next: nextVals });
 }
 
+export function deleteNotifications(s: AppState, ids: string[], actor: string, now: number): Mutation {
+  const audience = s.notifications.filter((n) => ids.includes(n.id)).map((n) => n.audience);
+  const uniqueAudience = new Set(audience);
+  if (uniqueAudience.size !== 1) return fail('Cannot delete notifications for multiple audiences.');
+  return withAudit(
+    { ...s, notifications: s.notifications.filter((n) => !ids.includes(n.id)) },
+    now,
+    { actor, action: 'Notifications deleted', entity: 'Notifications', entityId: ids.join(', '), previous: `${ids.length} notification(s)` }
+  );
+}
+
+export function archiveNotifications(s: AppState, ids: string[], actor: string, now: number): Mutation {
+  const notifications = s.notifications.filter((n) => ids.includes(n.id));
+  if (!notifications.length) return fail('No notifications found.');
+  const audiences = new Set(notifications.map((n) => n.audience));
+  if (audiences.size !== 1) return fail('Cannot archive notifications for multiple audiences.');
+  return withAudit(
+    {
+      ...s,
+      notifications: s.notifications.map((n) => ids.includes(n.id) ? { ...n, archived: true } : n)
+    },
+    now,
+    { actor, action: 'Notifications archived', entity: 'Notifications', entityId: ids.join(', '), previous: `${ids.length} notification(s)` }
+  );
+}
+
 export function saveSalary(s: AppState, ss: SalaryStructure, reason: string, actor: string, now: number): Mutation {
   if (!reason.trim()) return fail('A reason is required for salary structure changes.');
   const values = [...Object.values(ss.earnings), ...Object.values(ss.deductions), ss.employerContribution, ss.ctcAnnual];

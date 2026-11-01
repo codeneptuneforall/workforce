@@ -326,6 +326,7 @@ export interface AppNotification {
   createdAt: string;
   read: boolean;
   tone: Tone;
+  archived: boolean;
 }
 
 export interface AuditEntry {

@@ -127,5 +127,7 @@ export const cmd = {
   releaseSinglePayslip: (payslipId: string): Command => ({ op: 'payslip.release', args: { payslipId } }),
 
   /* notifications */
-  markNotificationsRead: (ids: string[]): Command => ({ op: 'notification.read', args: { ids } })
+  markNotificationsRead: (ids: string[]): Command => ({ op: 'notification.read', args: { ids } }),
+  deleteNotifications: (ids: string[]): Command => ({ op: 'notification.delete', args: { ids } }),
+  archiveNotifications: (ids: string[]): Command => ({ op: 'notification.archive', args: { ids } })
 };

@@ -379,7 +379,8 @@ export function buildInitialState(now: number = Date.now()): AppState {
     link: n.link,
     createdAt: iso(now - n.minutesAgo * MINUTE),
     read: !!n.read,
-    tone: n.tone
+    tone: n.tone,
+    archived: false
   }));
 
   const lastReleased = payrollRuns[payrollRuns.length - 1];

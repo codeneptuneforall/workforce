@@ -21,7 +21,7 @@ n: {audience: string;title: string;body: string;link: string;tone: Tone;})
 : AppState {
   return {
     ...s,
-    notifications: [{ ...n, id: uid('n'), createdAt: isoNow(now), read: false }, ...s.notifications]
+    notifications: [{ ...n, id: uid('n'), createdAt: isoNow(now), read: false, archived: false }, ...s.notifications]
   };
 }
 
