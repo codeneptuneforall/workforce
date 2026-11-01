@@ -1,5 +1,4 @@
 import cron from 'node-cron';
-import { connectDatabase, disconnectDatabase } from '../db';
 import { EmployeeModel } from '../models';
 import { TimesheetModel } from '../models';
 import { SessionModel } from '../models';
@@ -9,13 +8,15 @@ import { weekStartKey, weekDates, todayKey } from '@shared/domain/time';
  * Auto-submit timesheets for weeks that have ended and have no incomplete sessions.
  * Runs on server startup (to catch existing weeks) and every Saturday at 00:00.
  *
+ * The caller is responsible for ensuring the database is already connected
+ * (server/index.ts connects before starting the cron).
+ *
  * Eligibility:
  *   - Timesheet status is 'Draft'
  *   * Week has ended (Sunday of that week is before today)
  *   - No incomplete sessions (Interrupted, or Working/Paused with date in the past)
  */
 async function autoSubmitTimesheets(): Promise<{ submitted: number; skipped: number }> {
-  await connectDatabase();
   let submitted = 0;
   let skipped = 0;
 
@@ -150,8 +151,9 @@ async function autoSubmitTimesheets(): Promise<{ submitted: number; skipped: num
 
     console.log(`[auto-submit] Complete: ${submitted} submitted, ${skipped} skipped`);
     return { submitted, skipped };
-  } finally {
-    await disconnectDatabase();
+  } catch (err) {
+    console.error('[auto-submit] Failed:', err);
+    return { submitted, skipped };
   }
 }
 
