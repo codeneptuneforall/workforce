@@ -160,7 +160,10 @@ function validateTransition(userRole: string, userId: string, issue: {status: st
   if (!t) return { ok: false, error: 'Unknown transition.' };
   if (!t.from.includes(issue.status)) return { ok: false, error: `Cannot transition from ${issue.status}.` };
   if (!t.roles.includes(userRole)) return { ok: false, error: `Your role cannot perform this transition.` };
-  if (t.assigneeOnly && issue.assigneeId !== userId) return { ok: false, error: 'Only the assignee can perform this transition.' };
+  // Management/admin oversee all issues; assigneeOnly applies only to developers
+  // (their userId matches employee assigneeId). Management userId is in a different
+  // ID space, so bypass the check for them.
+  if (t.assigneeOnly && !['admin', 'manager'].includes(userRole) && issue.assigneeId !== userId) return { ok: false, error: 'Only the assignee can perform this transition.' };
   if (transitionId === 'reopen' && userRole === 'reporter' && issue.reporterId !== userId) return { ok: false, error: 'Only the reporter can reopen this issue.' };
   return { ok: true, to: t.to };
 }
