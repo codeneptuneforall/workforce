@@ -30,7 +30,10 @@ export function ReportBug() {
       return;
     }
     const issue = await createIssue(form.draft);
-    if (!issue) return;
+    if (!issue) {
+      toast.error('Failed to report the issue. Please try again.');
+      return;
+    }
     setCreated(issue);
     toast.success(`${issue.key} added to the tracker`, { description: 'Stored in the Workforce database.' });
   };

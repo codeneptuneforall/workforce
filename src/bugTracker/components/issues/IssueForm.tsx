@@ -45,14 +45,16 @@ export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: Issue
   const workforceProjects = (state.projects ?? []).filter((p: any) => p.status !== 'Archived');
   const accessibleProjects = workforceProjects.length ? workforceProjects : (state.projects ?? []);
   const workforceEmployees = state.employees ?? [];
+  // Show every active workforce employee in the assignee dropdown (not just
+  // those linked to the selected project), so assignment works for any project.
   const developers = workforceEmployees
-    .map((e: any) => {
-      const designation = String(e.designation || '').toLowerCase();
-      const role = designation.includes('qa') || designation.includes('quality') ? 'qa' : 'developer';
-      const projectIds = (state.projects ?? []).filter((p: any) => (p.employeeIds || []).includes(e.id)).map((p: any) => p.id);
-      return { id: e.id, name: e.name, role, projectIds };
-    })
-    .filter((e: any) => e.role === 'developer' && (!draft.projectId || e.projectIds.includes(draft.projectId)));
+    .filter((e: any) => e.status === 'Active')
+    .map((e: any) => ({
+      id: e.id,
+      name: e.name,
+      designation: e.designation,
+      projectIds: (state.projects ?? []).filter((p: any) => (p.employeeIds || []).includes(e.id)).map((p: any) => p.id)
+    }));
 
   return (
     <form
