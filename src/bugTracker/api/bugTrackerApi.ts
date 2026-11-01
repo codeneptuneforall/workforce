@@ -17,7 +17,7 @@ import type {
 } from '../types/bugTracker';
 import type { TransitionId } from '../utils/workflow';
 
-const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 const BASE = `${API_BASE}/api/bug-tracker`;
 
 function normalizeIssue<T>(issue: any): T {

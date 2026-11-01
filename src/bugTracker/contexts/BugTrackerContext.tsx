@@ -145,7 +145,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
         // endpoint returns nothing (e.g. split deployment / stale backend).
         if (!projects.length) {
           try {
-            const apiBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+            const apiBase = (import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
             const stateRes = await fetch(`${apiBase}/api/state`, { credentials: 'include' });
             if (stateRes.ok) {
               const stateData = await stateRes.json();
