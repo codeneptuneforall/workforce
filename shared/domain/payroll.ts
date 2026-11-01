@@ -178,9 +178,18 @@ now: number)
 
   // --- Pro-rata: employee who joined mid-month is paid only from joining date ---
   const monthStart = dates[0];
-  // Normalize joiningDate to an ISO date string (handles Date objects / timestamps).
-  const joiningStr = emp.joiningDate ? String(emp.joiningDate).slice(0, 10) : '';
-  const effectiveFrom = joiningStr && joiningStr > monthStart ? joiningStr : monthStart;
+  // Normalize joiningDate to an ISO date string (handles Date objects / timestamps / time suffixes).
+  const joiningRaw = emp.joiningDate ? String(emp.joiningDate) : '';
+  const joiningStr = joiningRaw.includes('T') ? joiningRaw.slice(0, 10) : joiningRaw.slice(0, 10);
+  // Robust comparison using parsed dates (avoids string/locale pitfalls).
+  let effectiveFrom = monthStart;
+  if (joiningStr) {
+    const joinDate = new Date(joiningStr + 'T00:00:00');
+    const monthStartDate = new Date(monthStart + 'T00:00:00');
+    if (!isNaN(joinDate.getTime()) && joinDate > monthStartDate) {
+      effectiveFrom = joiningStr;
+    }
+  }
   const payrollDates = dates.filter(d => d >= effectiveFrom);
   const totalDaysInMonth = dates.length;
   const payrollDayCount = payrollDates.length;
@@ -326,7 +335,8 @@ export function payrollEmployees(state: AppState, month: string): Employee[] {
   const last = dates[dates.length - 1];
   return state.employees.filter(
     (e) => {
-      const jd = e.joiningDate ? String(e.joiningDate).slice(0, 10) : '';
+      const jdRaw = e.joiningDate ? String(e.joiningDate) : '';
+      const jd = jdRaw.includes('T') ? jdRaw.slice(0, 10) : jdRaw.slice(0, 10);
       return (
         (e.status === 'Active' && (!jd || jd <= last)) ||
         (jd && jd <= first && state.sessions.some((s) => s.employeeId === e.id && s.date.startsWith(month)))
