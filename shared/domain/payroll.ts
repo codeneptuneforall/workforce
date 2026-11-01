@@ -331,16 +331,14 @@ export function payslipBlocker(emp: {bankName?: string; bankAccountNumber?: stri
  */
 export function payrollEmployees(state: AppState, month: string): Employee[] {
   const dates = monthDates(month);
-  const first = dates[0];
   const last = dates[dates.length - 1];
+  // Only currently active employees belong in a payroll run. Inactive records
+  // are excluded even if they recorded time during the month.
   return state.employees.filter(
     (e) => {
       const jdRaw = e.joiningDate ? String(e.joiningDate) : '';
       const jd = jdRaw.includes('T') ? jdRaw.slice(0, 10) : jdRaw.slice(0, 10);
-      return (
-        (e.status === 'Active' && (!jd || jd <= last)) ||
-        (jd && jd <= first && state.sessions.some((s) => s.employeeId === e.id && s.date.startsWith(month)))
-      );
+      return e.status === 'Active' && (!jd || jd <= last);
     }
   );
 }
