@@ -178,7 +178,9 @@ now: number)
 
   // --- Pro-rata: employee who joined mid-month is paid only from joining date ---
   const monthStart = dates[0];
-  const effectiveFrom = emp.joiningDate && emp.joiningDate > monthStart ? emp.joiningDate : monthStart;
+  // Normalize joiningDate to an ISO date string (handles Date objects / timestamps).
+  const joiningStr = emp.joiningDate ? String(emp.joiningDate).slice(0, 10) : '';
+  const effectiveFrom = joiningStr && joiningStr > monthStart ? joiningStr : monthStart;
   const payrollDates = dates.filter(d => d >= effectiveFrom);
   const totalDaysInMonth = dates.length;
   const payrollDayCount = payrollDates.length;
@@ -323,9 +325,13 @@ export function payrollEmployees(state: AppState, month: string): Employee[] {
   const first = dates[0];
   const last = dates[dates.length - 1];
   return state.employees.filter(
-    (e) =>
-      (e.status === 'Active' && e.joiningDate <= last) ||
-      (e.joiningDate <= first && state.sessions.some((s) => s.employeeId === e.id && s.date.startsWith(month)))
+    (e) => {
+      const jd = e.joiningDate ? String(e.joiningDate).slice(0, 10) : '';
+      return (
+        (e.status === 'Active' && (!jd || jd <= last)) ||
+        (jd && jd <= first && state.sessions.some((s) => s.employeeId === e.id && s.date.startsWith(month)))
+      );
+    }
   );
 }
 
