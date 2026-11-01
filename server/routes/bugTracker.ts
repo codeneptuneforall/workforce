@@ -128,7 +128,9 @@ function canViewIssue(userRole: string, userId: string, issue: {projectId: strin
 /** Whether the user can edit a given issue. */
 function canEditIssue(userRole: string, userId: string, issue: {assigneeId?: string | null | undefined;reporterId: string;status: string}): boolean {
   if (rolePermissions[userRole]?.editAnyIssue) return true;
-  if (issue.assigneeId === userId) return true;
+  // Only the reporter may edit their own issue while it is still New.
+  // Developers/QA change status via transitions (start / submit-qa / pass-qa etc.),
+  // not by editing manager-set fields such as assignee, priority, title or description.
   return issue.reporterId === userId && issue.status === 'New';
 }
 

@@ -18,6 +18,8 @@ export function canViewIssue(issue: Issue, user: Employee): boolean {
 
 export function canEditIssue(issue: Issue, user: Employee): boolean {
   if (rolePermissions[user.role].editAnyIssue) return true;
-  if (issue.assigneeId === user.id) return true;
+  // Only the reporter may edit their own issue while it is still New.
+  // Developers/QA change status via transitions (start / submit-qa / pass-qa etc.),
+  // not by editing manager-set fields such as assignee, priority, title or description.
   return issue.reporterId === user.id && issue.status === 'New';
 }
