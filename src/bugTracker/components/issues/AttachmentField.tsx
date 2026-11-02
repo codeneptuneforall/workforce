@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FileTextIcon, ImageIcon, PaperclipIcon, UploadCloudIcon, XIcon } from 'lucide-react';
+import { FileTextIcon, ImageIcon, PaperclipIcon, UploadCloudIcon, XIcon, ZoomInIcon } from 'lucide-react';
 import type { Attachment } from '../../types/bugTracker';
 import { nowIso } from '../../utils/dates';
 import { createId } from '../../utils/issueService';
@@ -121,21 +121,30 @@ export function AttachmentField({ attachments, onChange, uploaderId, compact = f
 
 export function AttachmentPreview({ attachment, onClick, srcOverride }: {attachment: Attachment;onClick?: () => void;srcOverride?: string;}) {
   const [broken, setBroken] = useState(false);
-  const Icon = attachment.kind === 'image' ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
   const isImage = attachment.kind === 'image';
+  const Icon = isImage ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
   // Resolve the image source: explicit override first, then previewUrl, then undefined (icon fallback).
   const imgSrc = srcOverride || attachment.previewUrl;
+  const clickable = isImage && (onClick || imgSrc);
   return (
     <>
       <div
-        className={`flex h-20 items-center justify-center bg-canvas cursor-pointer ${isImage ? 'hover:bg-accent-soft hover:border-accent transition-colors' : ''}`}
-        onClick={onClick && isImage ? onClick : undefined}
+        className={`flex h-20 items-center justify-center bg-canvas cursor-pointer relative ${clickable ? 'hover:bg-accent-soft hover:border-accent transition-colors' : ''}`}
+        onClick={clickable ? onClick : undefined}
       >
         {imgSrc && !broken ?
         <img src={imgSrc} alt={attachment.name} className="h-full w-full object-cover" onError={() => setBroken(true)} /> :
 
-        <Icon className="h-6 w-6 text-ink-faint" aria-hidden="true" />
+        <div className="flex h-full w-full items-center justify-center">
+          <Icon className="h-6 w-6 text-ink-faint" aria-hidden="true" />
+        </div>
         }
+        {clickable && (
+        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <ZoomInIcon className="h-5 w-5 text-white" aria-hidden="true" />
+          <span className="text-[10px] text-white font-medium mt-1">View</span>
+        </div>
+        )}
       </div>
       <div className="border-t border-line px-2 py-1.5">
         <p className="truncate text-xs font-medium text-ink" title={attachment.name}>

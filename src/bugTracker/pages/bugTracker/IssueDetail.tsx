@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon, Trash2Icon, XIcon, ZoomInIcon } from 'lucide-react';
+import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { IssueStatusBadge } from '../../components/badges/IssueStatusBadge';
@@ -212,8 +212,10 @@ export function IssueDetail() {
               <li key={a.id} className="overflow-hidden rounded-md border border-line">
                     <AttachmentPreview
                       attachment={a}
-                      srcOverride={a.kind === 'image' ? (a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`) : undefined}
-                      onClick={a.kind === 'image' ? () => {
+                      srcOverride={a.previewUrl || (a.kind === 'image'
+                        ? `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`
+                        : undefined)}
+                      onClick={a.previewUrl || a.kind === 'image' ? () => {
                         const url = a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`;
                         setPreviewImage(url);
                       } : undefined} />
