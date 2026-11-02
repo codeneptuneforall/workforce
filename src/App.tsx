@@ -139,7 +139,8 @@ export function App() {
                 <Route path="profile" element={<MyProfilePage />} />
 {BUG_TRACKER_ENABLED && (
                 <Route path="bug-tracker" element={<BugTrackerProvider><Outlet /></BugTrackerProvider>}>
-                  <Route index element={<MyIssues />} />
+                  <Route index element={<Overview />} />
+                  <Route path="overview" element={<Overview />} />
                   <Route path="my-issues" element={<MyIssues />} />
                   <Route path="issues/:issueKey" element={<IssueDetail />} />
                   <Route path="report" element={<ReportBug />} />

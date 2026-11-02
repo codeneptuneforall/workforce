@@ -37,13 +37,21 @@ interface IssueFormProps {
 const opts = (values: readonly string[]) => values.map((v) => ({ value: v, label: v }));
 
 export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: IssueFormProps) {
-  const { currentUser } = useBugTracker();
+  const { currentUser, employees, permissions } = useBugTracker();
   const { state } = useData();
   const errorCount = Object.keys(errors).length;
   // Reuse the verified Workforce project/employee sources (DataContext), matching
   // the working Task Detail / Start Task dropdowns.
   const workforceProjects = (state.projects ?? []).filter((p: any) => p.status !== 'Archived');
   const accessibleProjects = workforceProjects.length ? workforceProjects : (state.projects ?? []);
+  // People who can be assigned to fix a bug: developers (and, as a fallback,
+  // everyone active) so QA can pick the right person when reporting.
+  const developers = employees
+    .filter((e) => e.role === 'developer')
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const assigneeOptions = developers.length
+    ? developers
+    : employees.filter((e) => e.id !== currentUser.id).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <form
@@ -140,8 +148,25 @@ export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: Issue
           </div>
         </section>
 
-        {/* Assignment is automatic: the person reporting the issue (the logged-in QA
-           engineer) becomes the assignee. There is no Assignee dropdown at creation. */}
+        {permissions.assign ? (
+        <section className="space-y-4 rounded-lg border border-line bg-surface p-5 shadow-card">
+          <h2 className="text-sm font-semibold text-ink">Assignment</h2>
+          <SelectField
+            id="assignee"
+            label="Assign to developer"
+            placeholder="Choose a developer"
+            value={draft.assigneeId}
+            onChange={(v) => setField('assigneeId', v)}
+            options={assigneeOptions.map((d) => ({ value: d.id, label: d.name }))}
+            hint="Assigning this bug to a developer skips triage." />
+          <TextField id="due" label="Due date" type="date" value={draft.dueDate} onChange={(v) => setField('dueDate', v)} hint="Optional" />
+        </section>
+        ) : (
+        <p className="flex gap-2 text-[13px] text-ink-muted">
+          <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" aria-hidden="true" />
+          A team lead will triage this issue and assign a developer and due date.
+        </p>
+        )}
 
         <div className="flex gap-2">
           <Button type="submit" variant="primary" className="flex-1">
