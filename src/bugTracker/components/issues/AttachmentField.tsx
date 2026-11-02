@@ -13,29 +13,37 @@ interface AttachmentFieldProps {
   compact?: boolean;
 }
 
-export function filesToAttachments(files: File[], uploaderId: string): {accepted: Attachment[];rejected: string[];} {
+export async function filesToAttachments(files: File[], uploaderId: string): Promise<{accepted: Attachment[];rejected: string[];}> {
   const accepted: Attachment[] = [];
   const rejected: string[] = [];
-  files.forEach((file) => {
+  for (const file of files) {
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       rejected.push(file.name);
-      return;
+      continue;
     }
     const isImage = file.type.startsWith('image/');
-    // Read file as a base64 data URL so the attachment travels with the
-    // issue record in MongoDB and survives deploys / git commits.
-    const reader = new FileReader();
-    reader.onload = () => {};
+    // Read images as base64 data URLs so the attachment travels with the
+    // issue record in MongoDB and previews on the issue detail page,
+    // surviving deploys / git commits / codebase changes.
+    let previewUrl: string | undefined = undefined;
+    if (isImage) {
+      previewUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read image'));
+        reader.readAsDataURL(file);
+      });
+    }
     accepted.push({
       id: createId('att'),
       name: file.name,
       sizeKb: Math.max(1, Math.round(file.size / 1024)),
       kind: isImage ? 'image' : /\.(log|har|txt)$/i.test(file.name) ? 'log' : 'document',
-      previewUrl: isImage ? undefined : undefined,
+      previewUrl,
       uploadedById: uploaderId,
       uploadedAt: nowIso()
     });
-  });
+  }
   return { accepted, rejected };
 }
 
@@ -45,33 +53,10 @@ export function AttachmentField({ attachments, onChange, uploaderId, compact = f
   const [rejected, setRejected] = useState<string[]>([]);
 
   const addFiles = async (files: File[]) => {
-    const result = filesToAttachments(files, uploaderId);
+    const result = await filesToAttachments(files, uploaderId);
     setRejected(result.rejected);
     if (!result.accepted.length) return;
-    // Convert images to base64 data URLs so they persist in MongoDB
-    const converted = await Promise.all(result.accepted.map(async (att, idx) => {
-      const file = files.filter((f) => f.size > 0)[idx];
-      // find corresponding file
-      return att;
-    }));
-    // Simpler: read each file
-    const withUrls = await Promise.all(result.accepted.map((att, i) => {
-      const file = files[i];
-      return new Promise<Attachment>((resolve) => {
-        if (file) {
-          // Read the file as a base64 data URL so its contents travel with the
-          // issue record in MongoDB and survive deploys / git commits / codebase
-          // changes (permanent storage, no on-disk path dependency).
-          const reader = new FileReader();
-          reader.onload = () => resolve({ ...att, previewUrl: reader.result as string });
-          reader.onerror = () => resolve(att);
-          reader.readAsDataURL(file);
-        } else {
-          resolve(att);
-        }
-      });
-    }));
-    if (withUrls.length) onChange([...attachments, ...withUrls]);
+    onChange([...attachments, ...result.accepted]);
   };
 
   return (

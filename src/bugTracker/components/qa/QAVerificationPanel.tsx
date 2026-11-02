@@ -133,8 +133,8 @@ export function QAVerificationPanel({ issue, onOutcome }: QAVerificationPanelPro
             accept="image/*,.pdf,.txt,.log,.har"
             className="sr-only"
             aria-label="Attach evidence"
-            onChange={(e) => {
-              const { accepted, rejected } = filesToAttachments(Array.from(e.target.files ?? []), currentUser.id);
+            onChange={async (e) => {
+              const { accepted, rejected } = await filesToAttachments(Array.from(e.target.files ?? []), currentUser.id);
               if (accepted.length) {
                 addAttachments(issue.id, accepted);
                 toast.success(`${accepted.length} evidence file${accepted.length > 1 ? 's' : ''} attached`);

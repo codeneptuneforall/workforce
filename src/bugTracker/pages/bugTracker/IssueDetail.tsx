@@ -167,12 +167,13 @@ export function IssueDetail() {
                 className="sr-only"
                 aria-label="Attach files to issue"
                 onChange={(e) => {
-                  const { accepted, rejected } = filesToAttachments(Array.from(e.target.files ?? []), currentUser.id);
-                  if (accepted.length) {
-                    addAttachments(issue.id, accepted);
-                    toast.success(`${accepted.length} file${accepted.length > 1 ? 's' : ''} attached`);
-                  }
-                  if (rejected.length) toast.error(`Too large to attach: ${rejected.join(', ')}`);
+                  filesToAttachments(Array.from(e.target.files ?? []), currentUser.id).then(({ accepted, rejected }) => {
+                    if (accepted.length) {
+                      addAttachments(issue.id, accepted);
+                      toast.success(`${accepted.length} file${accepted.length > 1 ? 's' : ''} attached`);
+                    }
+                    if (rejected.length) toast.error(`Too large to attach: ${rejected.join(', ')}`);
+                  });
                   e.target.value = '';
                 }} />
               
