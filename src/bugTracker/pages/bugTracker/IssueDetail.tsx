@@ -214,7 +214,7 @@ export function IssueDetail() {
                       srcOverride={a.kind === 'image' || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name)
                         ? (a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`)
                         : undefined}
-                      onClick={(a.kind === 'image' || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name)) ? () => {
+                      onClick={(a.previewUrl || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name) || a.kind === 'image') ? () => {
                         const url = a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`;
                         console.log('[IssueDetail] opening image preview:', url);
                         setPreviewImage(url);

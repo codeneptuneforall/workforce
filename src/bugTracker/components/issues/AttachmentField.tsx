@@ -128,7 +128,7 @@ export function AttachmentPreview({ attachment, onClick, srcOverride }: {attachm
   const Icon = isImage ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
   // Resolve the image source: explicit override first, then previewUrl, then undefined (icon fallback).
   const imgSrc = srcOverride || attachment.previewUrl;
-  const clickable = isImage && Boolean(onClick || imgSrc);
+  const clickable = Boolean(imgSrc);
   return (
     <>
       <div
