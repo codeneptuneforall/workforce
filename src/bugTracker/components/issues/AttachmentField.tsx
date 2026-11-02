@@ -119,12 +119,16 @@ export function AttachmentField({ attachments, onChange, uploaderId, compact = f
 
 }
 
-export function AttachmentPreview({ attachment }: {attachment: Attachment;}) {
+export function AttachmentPreview({ attachment, onClick }: {attachment: Attachment;onClick?: () => void;}) {
   const [broken, setBroken] = useState(false);
   const Icon = attachment.kind === 'image' ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
+  const isImage = attachment.kind === 'image' && Boolean(attachment.previewUrl);
   return (
     <>
-      <div className="flex h-20 items-center justify-center bg-canvas">
+      <div
+        className={`flex h-20 items-center justify-center bg-canvas cursor-pointer ${isImage ? 'hover:bg-accent-soft hover:border-accent transition-colors' : ''}`}
+        onClick={onClick && isImage ? onClick : undefined}
+      >
         {attachment.previewUrl && !broken ?
         <img src={attachment.previewUrl} alt={attachment.name} className="h-full w-full object-cover" onError={() => setBroken(true)} /> :
 

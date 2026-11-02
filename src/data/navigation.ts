@@ -136,6 +136,7 @@ export const employeeNav: NavGroup[] = [{
 {
   label: 'Bug Tracker',
   items: [
+{ label: 'Overview', to: '/employee/bug-tracker', icon: GaugeIcon },
 { label: 'My Issues', to: '/employee/bug-tracker/my-issues', icon: UserCheckIcon },
   { label: 'Report a Bug', to: '/employee/bug-tracker/report', icon: AlertCircleIcon },
 { label: 'Kanban Board', to: '/employee/bug-tracker/board', icon: SquareKanbanIcon }]

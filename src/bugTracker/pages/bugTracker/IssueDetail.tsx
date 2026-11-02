@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon } from 'lucide-react';
+import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon, XIcon, ZoomInIcon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { IssueStatusBadge } from '../../components/badges/IssueStatusBadge';
@@ -17,6 +17,7 @@ import { AccessRestricted } from '../../components/ui/AccessRestricted';
 import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Modal } from '../../components/ui/Modal';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
@@ -31,6 +32,7 @@ export function IssueDetail() {
   const { startTransition, openAssignment, dialogs } = useIssueTransition();
   const [tab, setTab] = useState<'comments' | 'activity'>('comments');
   const [editing, setEditing] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [issueFromApi, setIssueFromApi] = useState<Issue | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const localIssue = getIssueByKey(issueKey);
@@ -182,7 +184,9 @@ export function IssueDetail() {
             <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
                 {issue.attachments.map((a) =>
               <li key={a.id} className="overflow-hidden rounded-md border border-line">
-                    <AttachmentPreview attachment={a} />
+                    <AttachmentPreview
+                      attachment={a}
+                      onClick={a.kind === 'image' && a.previewUrl ? () => setPreviewImage(a.previewUrl!) : undefined} />
                   </li>
               )}
               </ul> :
@@ -228,6 +232,16 @@ export function IssueDetail() {
         }} />
       
       {dialogs}
+
+      {previewImage && (
+        <Modal open={Boolean(previewImage)} onClose={() => setPreviewImage(null)} size="lg" title="Image preview">
+          <img
+            src={previewImage}
+            alt="Attachment preview"
+            className="max-w-full max-h-[70vh] object-contain rounded-lg border border-line bg-canvas"
+          />
+        </Modal>
+      )}
     </div>);
 
 }
