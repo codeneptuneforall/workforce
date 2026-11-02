@@ -121,7 +121,10 @@ export function AttachmentField({ attachments, onChange, uploaderId, compact = f
 
 export function AttachmentPreview({ attachment, onClick, srcOverride }: {attachment: Attachment;onClick?: () => void;srcOverride?: string;}) {
   const [broken, setBroken] = useState(false);
-  const isImage = attachment.kind === 'image';
+  // Detect images by kind OR by file extension (robust for older attachments missing kind/previewUrl).
+  const isImageKind = attachment.kind === 'image';
+  const isImageExt = /\.(png|jpe?g|gif|webp|bmp)$/i.test(attachment.name);
+  const isImage = isImageKind || isImageExt;
   const Icon = isImage ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
   // Resolve the image source: explicit override first, then previewUrl, then undefined (icon fallback).
   const imgSrc = srcOverride || attachment.previewUrl;
