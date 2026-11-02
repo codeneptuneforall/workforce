@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon, Trash2Icon, XIcon } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { IssueStatusBadge } from '../../components/badges/IssueStatusBadge';
 import { PriorityBadge } from '../../components/badges/PriorityBadge';
@@ -67,6 +67,16 @@ export function IssueDetail() {
 
   const canDelete = currentUser.role === 'admin' || currentUser.role === 'manager' || issue.reporterId === currentUser.id;
 
+  const handleBack = () => {
+    // Go back to wherever the user came from (issues list, my issues, overview, etc.)
+    // rather than hardcoding the All Issues page.
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigate(bugTrackerRoutes.issues);
+    }
+  };
+
   const handleDelete = async () => {
     if (!issue) return;
     setDeleting(true);
@@ -85,10 +95,14 @@ export function IssueDetail() {
 
   return (
     <div className="mx-auto max-w-[1320px] space-y-5 px-4 py-6 sm:px-6">
-      <Link to={bugTrackerRoutes.issues} className="inline-flex items-center gap-1.5 text-[13px] text-ink-subtle hover:text-ink">
+      <button
+        type="button"
+        onClick={handleBack}
+        className="inline-flex items-center gap-1.5 text-[13px] text-ink-subtle hover:text-ink"
+        aria-label="Back">
         <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
-        All issues
-      </Link>
+        Back
+      </button>
 
       <header className="space-y-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
