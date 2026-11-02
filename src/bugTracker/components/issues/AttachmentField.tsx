@@ -119,18 +119,20 @@ export function AttachmentField({ attachments, onChange, uploaderId, compact = f
 
 }
 
-export function AttachmentPreview({ attachment, onClick }: {attachment: Attachment;onClick?: () => void;}) {
+export function AttachmentPreview({ attachment, onClick, srcOverride }: {attachment: Attachment;onClick?: () => void;srcOverride?: string;}) {
   const [broken, setBroken] = useState(false);
   const Icon = attachment.kind === 'image' ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
-  const isImage = attachment.kind === 'image' && Boolean(attachment.previewUrl);
+  const isImage = attachment.kind === 'image';
+  // Resolve the image source: explicit override first, then previewUrl, then undefined (icon fallback).
+  const imgSrc = srcOverride || attachment.previewUrl;
   return (
     <>
       <div
         className={`flex h-20 items-center justify-center bg-canvas cursor-pointer ${isImage ? 'hover:bg-accent-soft hover:border-accent transition-colors' : ''}`}
         onClick={onClick && isImage ? onClick : undefined}
       >
-        {attachment.previewUrl && !broken ?
-        <img src={attachment.previewUrl} alt={attachment.name} className="h-full w-full object-cover" onError={() => setBroken(true)} /> :
+        {imgSrc && !broken ?
+        <img src={imgSrc} alt={attachment.name} className="h-full w-full object-cover" onError={() => setBroken(true)} /> :
 
         <Icon className="h-6 w-6 text-ink-faint" aria-hidden="true" />
         }

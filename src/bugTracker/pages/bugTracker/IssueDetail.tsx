@@ -212,7 +212,11 @@ export function IssueDetail() {
               <li key={a.id} className="overflow-hidden rounded-md border border-line">
                     <AttachmentPreview
                       attachment={a}
-                      onClick={a.kind === 'image' && a.previewUrl ? () => setPreviewImage(a.previewUrl!) : undefined} />
+                      srcOverride={a.kind === 'image' ? (a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`) : undefined}
+                      onClick={a.kind === 'image' ? () => {
+                        const url = a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`;
+                        setPreviewImage(url);
+                      } : undefined} />
                   </li>
               )}
               </ul> :

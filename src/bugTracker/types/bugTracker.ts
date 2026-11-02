@@ -44,9 +44,10 @@ export interface Employee {
 export interface Attachment {
   id: string;
   name: string;
+  fileName?: string; // on-disk filename for server-stored attachments (fallback preview)
   sizeKb: number;
   kind: 'image' | 'document' | 'log';
-  previewUrl?: string;
+  previewUrl?: string; // base64 data URL for client-uploaded images, or server download URL
   uploadedById: string;
   uploadedAt: string;
 }
