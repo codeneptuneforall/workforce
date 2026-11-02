@@ -89,7 +89,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
 
   const currentUser = useMemo(() => {
     if (!user) return employees[0] ?? { id: '', name: '', initials: '', title: '', email: '', teamId: '', role: 'developer', projectIds: [], userId: '' };
-    const btEmployee = employees.find((e) => e.userId === user.id || e.email.toLowerCase() === user.email.toLowerCase());
+    const btEmployee = employees.find((e) => e.id === user.employeeId || e.email.toLowerCase() === user.email.toLowerCase() || e.userId === user.id);
     if (btEmployee) return btEmployee;
     return {
       id: user.id,
