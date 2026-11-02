@@ -19,7 +19,7 @@ import { ButtonLink } from '../../components/ui/ButtonLink';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
-import { bugTrackerRoutes } from '../../data/navigation';
+import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
 import { isOverdue } from '../../utils/issueMetrics';
 import { canEditIssue, canViewIssue } from '../../utils/permissions';
@@ -38,6 +38,7 @@ export function IssueDetail() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [issueFromApi, setIssueFromApi] = useState<Issue | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const base = portalBase();
   const localIssue = getIssueByKey(issueKey);
   // Prefer live context data (polled every 15s) so status changes from anyone
   // reflect without a page refresh. Fall back to one-time API fetch.
@@ -58,7 +59,7 @@ export function IssueDetail() {
           icon={FileQuestionIcon}
           title={`Issue ${issueKey} not found`}
           description="It may have been removed, or the key is incorrect."
-          action={<ButtonLink to={bugTrackerRoutes.issues}>Back to all issues</ButtonLink>} />
+          action={<ButtonLink to={`${base}/issues`}>Back to all issues</ButtonLink>} />
         
       </div>);
 
@@ -73,7 +74,7 @@ export function IssueDetail() {
     if (window.history.length > 1) {
       window.history.back();
     } else {
-      navigate(bugTrackerRoutes.issues);
+      navigate(`${base}/issues`);
     }
   };
 
@@ -83,7 +84,7 @@ export function IssueDetail() {
     try {
       await deleteIssue(issue.key);
       setDeleteConfirm(false);
-      navigate(bugTrackerRoutes.issues);
+      navigate(`${base}/issues`);
     } catch (err: any) {
       setDeleting(false);
       toast.error(err.message || 'Failed to delete issue.');
