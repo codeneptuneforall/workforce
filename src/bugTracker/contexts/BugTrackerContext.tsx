@@ -104,6 +104,13 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
   }, [user, employees]);
 
   const permissions = rolePermissions[role];
+
+  // QA engineers (Workforce employees whose designation contains "QA"/"quality")
+  // resolve to the 'qa' Bug Tracker role on the server. Mirror that here so the
+  // client UI (including assign-on-create) matches the server-side role.
+  useEffect(() => {
+    if (currentUser?.role === 'qa' && role !== 'qa') setRole('qa');
+  }, [currentUser]);
   const accessibleProjects = useMemo(() => {
     // Users with no project memberships (e.g. management) oversee all projects.
     if (currentUser.projectIds.length === 0) {

@@ -35,7 +35,7 @@ app.use(
     callback(null, { origin: origins, credentials: true });
   })
 );
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(cookieParser());
 
 /**

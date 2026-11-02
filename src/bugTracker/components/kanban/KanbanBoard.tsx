@@ -10,9 +10,10 @@ import { KanbanCard } from './KanbanCard';
 interface KanbanBoardProps {
   issues: Issue[];
   onMove: (issue: Issue, transition: WorkflowTransition) => void;
+  onAssign?: (issue: Issue) => void;
 }
 
-export function KanbanBoard({ issues, onMove }: KanbanBoardProps) {
+export function KanbanBoard({ issues, onMove, onAssign }: KanbanBoardProps) {
   const { currentUser } = useBugTracker();
   const [dragging, setDragging] = useState<Issue | null>(null);
   const [overColumn, setOverColumn] = useState<IssueStatus | null>(null);
@@ -105,7 +106,8 @@ export function KanbanBoard({ issues, onMove }: KanbanBoardProps) {
                     setDragging(null);
                     setOverColumn(null);
                   }}
-                  onMove={onMove} />
+                  onMove={onMove}
+                  onAssign={onAssign} />
 
                 )}
                 {columnIssues.length === 0 &&

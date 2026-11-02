@@ -18,9 +18,10 @@ interface KanbanCardProps {
   onDragStart: (issue: Issue) => void;
   onDragEnd: () => void;
   onMove: (issue: Issue, transition: WorkflowTransition) => void;
+  onAssign?: (issue: Issue) => void;
 }
 
-export function KanbanCard({ issue, transitions, dragging, onDragStart, onDragEnd, onMove }: KanbanCardProps) {
+export function KanbanCard({ issue, transitions, dragging, onDragStart, onDragEnd, onMove, onAssign }: KanbanCardProps) {
   const navigate = useNavigate();
   const { getEmployee, getProject } = useBugTracker();
   const overdue = isOverdue(issue);
@@ -53,6 +54,27 @@ export function KanbanCard({ issue, transitions, dragging, onDragStart, onDragEn
       </button>
       <p className="mt-1 truncate text-xs text-ink-subtle">{getProject(issue.projectId)?.name}</p>
 
+      {issue.attachments?.length > 0 && (
+        <div className="mt-2 flex gap-1.5 overflow-hidden">
+          {issue.attachments
+            .filter((a) => a.kind === 'image')
+            .slice(0, 3)
+            .map((a) => (
+              <img
+                key={a.id}
+                src={a.previewUrl}
+                alt={a.name}
+                className="h-8 w-8 rounded border border-line object-cover"
+              />
+            ))}
+          {issue.attachments.length > 3 && (
+            <span className="flex h-8 w-8 items-center justify-center rounded border border-line bg-canvas text-[10px] text-ink-muted">
+              +{issue.attachments.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
       {(issue.blocked || overdue) &&
       <div className="mt-2 flex flex-wrap gap-1">
           {issue.blocked &&
@@ -78,6 +100,15 @@ export function KanbanCard({ issue, transitions, dragging, onDragStart, onDragEn
         <span title={assignee?.name ?? 'Unassigned'}>
           <Avatar employee={assignee} size="xs" />
         </span>
+        {onAssign && (
+          <button
+            type="button"
+            onClick={() => onAssign(issue)}
+            className="text-[11px] font-medium text-accent hover:text-accent-hover"
+          >
+            Assign
+          </button>
+        )}
       </div>
 
       {transitions.length > 0 &&

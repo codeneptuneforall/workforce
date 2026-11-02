@@ -115,7 +115,7 @@ const rolePermissions: Record<string, {
   admin: { manageSettings: true, triage: true, assign: true, setPriority: true, viewTeam: true, viewQAQueue: true, verifyQA: true, viewReports: true, editAnyIssue: true },
   manager: { manageSettings: false, triage: true, assign: true, setPriority: true, viewTeam: true, viewQAQueue: true, verifyQA: false, viewReports: true, editAnyIssue: true },
   developer: { manageSettings: false, triage: false, assign: false, setPriority: false, viewTeam: false, viewQAQueue: false, verifyQA: false, viewReports: false, editAnyIssue: false },
-  qa: { manageSettings: false, triage: false, assign: false, setPriority: false, viewTeam: false, viewQAQueue: true, verifyQA: true, viewReports: true, editAnyIssue: false },
+  qa: { manageSettings: false, triage: false, assign: true, setPriority: false, viewTeam: false, viewQAQueue: true, verifyQA: true, viewReports: true, editAnyIssue: false },
   reporter: { manageSettings: false, triage: false, assign: false, setPriority: false, viewTeam: false, viewQAQueue: false, verifyQA: false, viewReports: false, editAnyIssue: false }
 };
 
@@ -341,7 +341,7 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
     expectedResult: String(body.expectedResult ?? ''),
     actualResult: String(body.actualResult ?? ''),
     labels: Array.isArray(body.labels) ? body.labels : [],
-    attachments: [],
+    attachments: Array.isArray(body.attachments) ? body.attachments : [],
     comments: [],
     activity: [{ id: `act-${Date.now().toString(36)}`, actorId: btId, message: 'reported this issue', createdAt: now, toStatus: 'New' }],
     relatedIssueKeys: [],

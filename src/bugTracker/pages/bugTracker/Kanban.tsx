@@ -9,7 +9,7 @@ import { isOverdue } from '../../utils/issueMetrics';
 
 export function Kanban() {
   const { scopedIssues, employees, accessibleProjects, projectScope, setProjectScope, currentUser } = useBugTracker();
-  const { startTransition, dialogs } = useIssueTransition();
+  const { startTransition, openAssignment, dialogs } = useIssueTransition();
   const [assigneeId, setAssigneeId] = useState('');
   const [attentionOnly, setAttentionOnly] = useState(false);
 
@@ -92,7 +92,7 @@ export function Kanban() {
           Overdue
         </span>
       </div>
-      <KanbanBoard issues={issues} onMove={startTransition} />
+      <KanbanBoard issues={issues} onMove={startTransition} onAssign={openAssignment} />
       {dialogs}
     </div>
   );
