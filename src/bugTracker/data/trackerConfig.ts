@@ -1,8 +1,8 @@
 import type { Environment, IssueType, Priority, Role, Severity } from '../types/bugTracker';
 
-export const issueTypes: IssueType[] = ['Bug', 'UI/UX Issue', 'Functional Issue', 'Performance Issue', 'Security Issue', 'Enhancement', 'Task'];
-export const severities: Severity[] = ['Critical', 'High', 'Medium', 'Low'];
-export const priorities: Priority[] = ['Urgent', 'High', 'Normal', 'Low'];
+export const issueTypes: IssueType[] = ['Bug', 'UI/UX Issue', 'Functional Issue', 'Performance Issue', 'Security Issue', 'Enhancement', 'Task', 'Integration', 'End to End'];
+export const severities: Severity[] = ['Blocker', 'Critical', 'Major', 'Minor'];
+export const priorities: Priority[] = ['P1 (High)', 'P2 (Medium)', 'P3 (Low)'];
 export const environments: Environment[] = ['Production', 'Staging', 'QA', 'Development'];
 
 export const workloadCapacity = 5;
@@ -18,17 +18,16 @@ export const issueTypeDefinitions = [
 
 
 export const severityDefinitions = [
-{ name: 'Critical', description: 'Payroll, security or data loss impact with no workaround', target: 'Respond in 4 hours' },
-{ name: 'High', description: 'Major feature broken for many employees; workaround is painful', target: 'Respond in 1 day' },
-{ name: 'Medium', description: 'Feature partially broken; reasonable workaround exists', target: 'Respond in 3 days' },
-{ name: 'Low', description: 'Cosmetic or minor inconvenience', target: 'Next planned release' }];
+{ name: 'Blocker', description: 'System completely broken; no workaround; payroll/security/data loss impact', target: 'Respond immediately' },
+{ name: 'Critical', description: 'Major feature broken for many employees; painful workaround', target: 'Respond in 4 hours' },
+{ name: 'Major', description: 'Feature partially broken; reasonable workaround exists', target: 'Respond in 1 day' },
+{ name: 'Minor', description: 'Cosmetic or minor inconvenience', target: 'Next planned release' }];
 
 
 export const priorityDefinitions = [
-{ name: 'Urgent', description: 'Interrupt planned work and fix in the current sprint', target: 'Due in 2 days' },
-{ name: 'High', description: 'Schedule ahead of other planned work', target: 'Due in 5 days' },
-{ name: 'Normal', description: 'Plan into an upcoming sprint', target: 'Due in 10 days' },
-{ name: 'Low', description: 'Fix when capacity allows', target: 'Due in 20 days' }];
+{ name: 'P1 (High)', description: 'Interrupt planned work and fix in the current sprint', target: 'Due in 2 days' },
+{ name: 'P2 (Medium)', description: 'Schedule ahead of other planned work', target: 'Due in 5 days' },
+{ name: 'P3 (Low)', description: 'Fix when capacity allows', target: 'Due in 10 days' }];
 
 
 export const trackerLabels: string[] = [
@@ -47,11 +46,11 @@ export const trackerLabels: string[] = [
 
 
 export const projectDefaults: {projectId: string;defaultAssigneeId: string;defaultPriority: Priority;dueInDays: number;requireQa: boolean;}[] = [
-{ projectId: 'p1', defaultAssigneeId: 'e2', defaultPriority: 'Normal', dueInDays: 10, requireQa: true },
-{ projectId: 'p1', defaultAssigneeId: 'e7', defaultPriority: 'Normal', dueInDays: 10, requireQa: true },
-{ projectId: 'p1', defaultAssigneeId: 'e4', defaultPriority: 'High', dueInDays: 5, requireQa: true },
-{ projectId: 'p1', defaultAssigneeId: 'e7', defaultPriority: 'Normal', dueInDays: 10, requireQa: false },
-{ projectId: 'p2', defaultAssigneeId: 'e3', defaultPriority: 'Normal', dueInDays: 7, requireQa: true }];
+{ projectId: 'p1', defaultAssigneeId: 'e2', defaultPriority: 'P3 (Low)', dueInDays: 10, requireQa: true },
+{ projectId: 'p1', defaultAssigneeId: 'e7', defaultPriority: 'P3 (Low)', dueInDays: 10, requireQa: true },
+{ projectId: 'p1', defaultAssigneeId: 'e4', defaultPriority: 'P2 (Medium)', dueInDays: 5, requireQa: true },
+{ projectId: 'p1', defaultAssigneeId: 'e7', defaultPriority: 'P3 (Low)', dueInDays: 10, requireQa: false },
+{ projectId: 'p2', defaultAssigneeId: 'e3', defaultPriority: 'P3 (Low)', dueInDays: 7, requireQa: true }];
 
 
 export const permissionMatrix: {capability: string;roles: Role[];}[] = [

@@ -3,7 +3,7 @@ import { ChevronDownIcon, ChevronsUpIcon, ChevronUpIcon, EqualIcon } from 'lucid
 import type { Priority } from '../../types/bugTracker';
 import { priorityStyles } from '../../utils/issueStyles';
 
-const icons = { Urgent: ChevronsUpIcon, High: ChevronUpIcon, Normal: EqualIcon, Low: ChevronDownIcon };
+const icons: Record<Priority, any> = { 'P1 (High)': ChevronsUpIcon, 'P2 (Medium)': ChevronUpIcon, 'P3 (Low)': EqualIcon };
 
 export function PriorityBadge({ priority, iconOnly = false }: {priority: Priority;iconOnly?: boolean;}) {
   const Icon = icons[priority];

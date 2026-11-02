@@ -27,7 +27,7 @@ export function AssignmentDialog({ issue, onClose, onConfirm }: AssignmentDialog
   const [query, setQuery] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [priority, setPriority] = useState<Priority>('Normal');
+  const [priority, setPriority] = useState<Priority>('P3 (Low)');
   const [error, setError] = useState('');
 
   useEffect(() => {

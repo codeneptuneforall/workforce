@@ -55,6 +55,7 @@ interface BugTrackerContextValue {
   runTransition: (id: string, transitionId: TransitionId, note?: string) => Promise<void>;
   addComment: (id: string, body: string, kind: CommentKind) => Promise<void>;
   addAttachments: (id: string, attachments: Attachment[]) => Promise<void>;
+  deleteIssue: (key: string) => Promise<void>;
   resetPreviewData: () => void;
   loading: boolean;
 }
@@ -268,6 +269,11 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       setIssues((prev) => prev.map((i) => i.id === issue.id ? issue : i));
     });
 
+    // Issue deleted
+    socket.on('issue:deleted', (data: { key: string; id: string }) => {
+      setIssues((prev) => prev.filter((i) => i.key !== data.key && i.id !== data.id));
+    });
+
     // New comment added
     socket.on('issue:commented', (data: { issueKey: string; comment: any }) => {
       setIssues((prev) => prev.map((i) => {
@@ -424,6 +430,17 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     }
   }, [issues, refreshIssues]);
 
+  const deleteIssue = useCallback(async (key: string): Promise<void> => {
+    try {
+      await bugTrackerApi.deleteIssue(key);
+      setIssues((prev) => prev.filter((i) => i.key !== key));
+      await refreshIssues();
+    } catch (err: any) {
+      console.error('[bugTracker] deleteIssue failed', err);
+      throw new Error(err.message || 'Failed to delete issue');
+    }
+  }, [refreshIssues]);
+
   const markNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n: AppNotification) => n.recipientId === currentUser.id ? { ...n, read: true } : n));
   }, [currentUser]);
@@ -460,6 +477,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     runTransition,
     addComment,
     addAttachments,
+    deleteIssue,
     resetPreviewData,
     loading
   };

@@ -32,11 +32,12 @@ interface IssueFormProps {
   setField: <K extends keyof IssueDraft>(key: K, value: IssueDraft[K]) => void;
   onSubmit: () => void;
   onCancel: () => void;
+  submitting?: boolean;
 }
 
 const opts = (values: readonly string[]) => values.map((v) => ({ value: v, label: v }));
 
-export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: IssueFormProps) {
+export function IssueForm({ draft, errors, setField, onSubmit, onCancel, submitting = false }: IssueFormProps) {
   const { currentUser, employees, permissions } = useBugTracker();
   const { state } = useData();
   const errorCount = Object.keys(errors).length;
@@ -117,7 +118,7 @@ export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: Issue
         <section className="space-y-4 rounded-lg border border-line bg-surface p-5 shadow-card">
           <h2 className="text-sm font-semibold text-ink">Classification</h2>
           <SelectField id="project" label="Project" required placeholder="Select project" value={draft.projectId} onChange={(v) => setField('projectId', v)} options={accessibleProjects.map((p) => ({ value: p.id, label: p.name }))} error={errors.projectId} />
-          <SelectField id="type" label="Issue type" required placeholder="Select type" value={draft.type} onChange={(v) => setField('type', v as IssueDraft['type'])} options={opts(issueTypes)} error={errors.type} />
+          <TextField id="type" label="Issue type" required value={draft.type} onChange={(v) => setField('type', v)} placeholder="e.g. Bug, Integration, End to End" error={errors.type} />
           <div className="space-y-3">
             <div>
               <p className="mb-1.5 text-[13px] font-medium text-ink">Severity <span className="ml-0.5 text-danger">*</span></p>
@@ -169,10 +170,10 @@ export function IssueForm({ draft, errors, setField, onSubmit, onCancel }: Issue
         )}
 
         <div className="flex gap-2">
-          <Button type="submit" variant="primary" className="flex-1">
-            Submit issue
+          <Button type="submit" variant="primary" className="flex-1" disabled={submitting}>
+            {submitting ? 'Submitting…' : 'Submit issue'}
           </Button>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={onCancel} disabled={submitting}>Cancel</Button>
         </div>
       </aside>
     </form>);

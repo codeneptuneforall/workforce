@@ -539,6 +539,24 @@ bugTrackerRouter.post('/issues/:key/comments', commentLimiter, async (_req, res)
   io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
 });
 
+/** Delete an issue � admin, manager, or the reporter can delete their own issue. */
+bugTrackerRouter.delete('/issues/:key', issueLimiter, async (_req, res) => {
+  const issue = await BugTrackerIssueModel.findOne({ key: _req.params.key });
+  if (!issue) { res.status(404).json({ error: 'Issue not found.' }); return; }
+  const context = await getBugTrackerContext(_req.user!);
+  if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
+  const { role: userRole, id: btId } = context;
+  const isAdminOrManager = ['admin', 'manager'].includes(userRole);
+  const isReporter = issue.reporterId === btId;
+  if (!isAdminOrManager && !isReporter) {
+    res.status(403).json({ error: 'You do not have permission to delete this issue.' }); return;
+  }
+  await issue.deleteOne();
+  try { await writeAuditEntry(_req.user!, 'Issue deleted', 'BugTrackerIssue', issue.key, issue.title, undefined); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
+  res.json({ ok: true, key: issue.key });
+  io.emit('issue:deleted', { key: issue.key, id: issue._id as string });
+});
+
 /** Add attachments (JSON payload) to an issue. */
 bugTrackerRouter.post('/issues/:key/attachments', uploadLimiter, async (_req, res) => {
   const issue = await BugTrackerIssueModel.findOne({ key: _req.params.key });

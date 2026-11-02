@@ -13,18 +13,17 @@ export const statusStyles: Record<IssueStatus, {badge: string;dot: string;hex: s
 };
 
 export const severityStyles: Record<Severity, {badge: string;hex: string;}> = {
-  Critical: { badge: 'bg-danger text-white', hex: '#D92D20' },
-  High: { badge: 'bg-warning-soft text-warning-ink ring-1 ring-inset ring-warning-line', hex: '#DC6803' },
-  Medium: { badge: 'bg-info-soft text-info-ink ring-1 ring-inset ring-info-line', hex: '#1570EF' },
-  Low: { badge: 'bg-neutral-soft text-neutral-ink ring-1 ring-inset ring-line', hex: '#98A2B3' }
+  Blocker: { badge: 'bg-danger text-white', hex: '#D92D20' },
+  Critical: { badge: 'bg-warning-soft text-warning-ink ring-1 ring-inset ring-warning-line', hex: '#DC6803' },
+  Major: { badge: 'bg-info-soft text-info-ink ring-1 ring-inset ring-info-line', hex: '#1570EF' },
+  Minor: { badge: 'bg-neutral-soft text-neutral-ink ring-1 ring-inset ring-line', hex: '#98A2B3' }
 };
 
 export const priorityStyles: Record<Priority, {text: string;}> = {
-  Urgent: { text: 'text-danger' },
-  High: { text: 'text-warning' },
-  Normal: { text: 'text-info' },
-  Low: { text: 'text-ink-faint' }
+  'P1 (High)': { text: 'text-danger' },
+  'P2 (Medium)': { text: 'text-warning' },
+  'P3 (Low)': { text: 'text-info' }
 };
 
-export const severityRank: Record<Severity, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
-export const priorityRank: Record<Priority, number> = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+export const severityRank: Record<Severity, number> = { Blocker: 0, Critical: 1, Major: 2, Minor: 3 };
+export const priorityRank: Record<Priority, number> = { 'P1 (High)': 0, 'P2 (Medium)': 1, 'P3 (Low)': 2 };

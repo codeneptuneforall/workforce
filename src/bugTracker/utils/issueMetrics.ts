@@ -32,7 +32,7 @@ export function computeIssueMetrics(list: Issue[], userId: string): IssueMetrics
     total: list.length,
     open: list.filter((i) => isOpenStatus(i.status)).length,
     inProgress: list.filter((i) => i.status === 'In Progress').length,
-    criticalHigh: list.filter((i) => isOpenStatus(i.status) && (i.severity === 'Critical' || i.severity === 'High')).length,
+    criticalHigh: list.filter((i) => isOpenStatus(i.status) && (i.severity === 'Blocker' || i.severity === 'Critical')).length,
     awaitingQa: list.filter((i) => QA_STATUSES.includes(i.status)).length,
     overdue: list.filter(isOverdue).length,
     resolved: list.filter((i) => !isOpenStatus(i.status)).length,

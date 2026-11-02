@@ -93,5 +93,8 @@ export const bugTrackerApi = {
   getNotifications: () => request<{ notifications: AppNotification[] }>('/notifications'),
 
   markNotificationsRead: () =>
-    request<{ ok: boolean }>('/notifications/read', { method: 'POST' })
+    request<{ ok: boolean }>('/notifications/read', { method: 'POST' }),
+
+  deleteIssue: (key: string) =>
+    request<{ ok: boolean; key: string }>(`/issues/${key}`, { method: 'DELETE' })
 };

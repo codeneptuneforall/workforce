@@ -36,7 +36,7 @@ function matchesPreset(issue: Issue, preset: IssuePreset, userId: string): boole
     case 'awaiting-qa':
       return QA_STATUSES.includes(issue.status);
     case 'critical-high':
-      return isOpenStatus(issue.status) && (issue.severity === 'Critical' || issue.severity === 'High');
+      return isOpenStatus(issue.status) && (issue.severity === 'Blocker' || issue.severity === 'Critical');
     case 'resolved':
       return !isOpenStatus(issue.status);
     case 'in-progress':

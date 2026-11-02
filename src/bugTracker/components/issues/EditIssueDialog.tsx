@@ -75,7 +75,7 @@ export function EditIssueDialog({ issue, onClose, onSave }: EditIssueDialogProps
           <TextField id="edit-title" label="Title" required value={form.title} onChange={(v) => {set('title', v);setError('');}} error={error} />
           <TextField id="edit-description" label="Description" multiline rows={4} value={form.description} onChange={(v) => set('description', v)} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <SelectField id="edit-type" label="Issue type" value={form.type} onChange={(v) => set('type', v as IssueType)} options={opts(issueTypes)} />
+            <TextField id="edit-type" label="Issue type" value={form.type} onChange={(v) => set('type', v)} placeholder="e.g. Bug, Integration, End to End" />
             <SelectField id="edit-severity" label="Severity" value={form.severity} onChange={(v) => set('severity', v as Severity)} options={opts(severities)} />
             <SelectField
             id="edit-priority"

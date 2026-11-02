@@ -20,8 +20,10 @@ export function ReportBug() {
   const initialProject = projectScope === 'all' ? '' : projectScope;
   const form = useIssueForm(initialProject);
   const [created, setCreated] = useState<Issue | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
+    if (submitting) return;
     const errors = form.validate();
     const firstError = Object.keys(errors)[0];
     if (firstError) {
@@ -29,10 +31,12 @@ export function ReportBug() {
       document.getElementById(idMap[firstError] ?? firstError)?.focus();
       return;
     }
+    setSubmitting(true);
     let issue: Issue | null = null;
     try {
       issue = await createIssue(form.draft);
     } catch (err: any) {
+      setSubmitting(false);
       toast.error(err.message || 'Failed to report the issue. Please try again.');
       return;
     }
@@ -94,7 +98,7 @@ export function ReportBug() {
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 sm:px-6">
       <PageHeader title="Report a bug" description="Clear reproduction steps help developers fix issues faster." />
-      <IssueForm draft={form.draft} errors={form.errors} setField={form.setField} onSubmit={submit} onCancel={() => navigate(bugTrackerRoutes.issues)} />
+      <IssueForm draft={form.draft} errors={form.errors} setField={form.setField} onSubmit={submit} onCancel={() => navigate(bugTrackerRoutes.issues)} submitting={submitting} />
     </div>);
 
 }

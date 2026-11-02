@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon, XIcon, ZoomInIcon } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon, Trash2Icon, XIcon, ZoomInIcon } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { IssueStatusBadge } from '../../components/badges/IssueStatusBadge';
 import { PriorityBadge } from '../../components/badges/PriorityBadge';
@@ -18,6 +18,7 @@ import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
@@ -28,11 +29,14 @@ import type { Issue } from '../../types/bugTracker';
 
 export function IssueDetail() {
   const { issueKey = '' } = useParams();
-  const { getIssueByKey, currentUser, permissions, getProject, updateIssue, addAttachments, getIssue } = useBugTracker();
+  const { getIssueByKey, currentUser, permissions, getProject, updateIssue, addAttachments, getIssue, deleteIssue } = useBugTracker();
   const { startTransition, openAssignment, dialogs } = useIssueTransition();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<'comments' | 'activity'>('comments');
   const [editing, setEditing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [issueFromApi, setIssueFromApi] = useState<Issue | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const localIssue = getIssueByKey(issueKey);
@@ -61,6 +65,21 @@ export function IssueDetail() {
 
   }
   if (!canViewIssue(issue, currentUser)) return <AccessRestricted area={`Issue ${issue.key}`} />;
+
+  const canDelete = currentUser.role === 'admin' || currentUser.role === 'manager' || issue.reporterId === currentUser.id;
+
+  const handleDelete = async () => {
+    if (!issue) return;
+    setDeleting(true);
+    try {
+      await deleteIssue(issue.key);
+      setDeleteConfirm(false);
+      navigate(bugTrackerRoutes.issues);
+    } catch (err: any) {
+      setDeleting(false);
+      toast.error(err.message || 'Failed to delete issue.');
+    }
+  };
 
   const transitions = getAvailableTransitions(issue, currentUser.role, currentUser.id);
   const overdue = isOverdue(issue);
@@ -109,6 +128,13 @@ export function IssueDetail() {
             onTransition={(t) => startTransition(issue, t)}
             onEdit={() => setEditing(true)}
             onAssign={() => openAssignment(issue)} />
+          
+          {canDelete && (
+          <Button size="sm" variant="danger-outline" onClick={() => setDeleteConfirm(true)} className="ml-2">
+            <Trash2Icon className="h-3.5 w-3.5" aria-hidden="true" />
+            Delete issue
+          </Button>
+          )}
           
         </div>
         <div className="rounded-lg border border-line bg-surface px-4 py-3 shadow-card">
@@ -241,6 +267,18 @@ export function IssueDetail() {
             className="max-w-full max-h-[70vh] object-contain rounded-lg border border-line bg-canvas"
           />
         </Modal>
+      )}
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          open={deleteConfirm}
+          title={`Delete ${issue.key}?`}
+          message="This issue and all its attachments, comments and activity will be permanently removed."
+          confirmLabel="Delete"
+          tone="danger"
+          onConfirm={handleDelete}
+          onClose={() => setDeleteConfirm(false)}
+        />
       )}
     </div>);
 

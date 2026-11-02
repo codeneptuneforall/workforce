@@ -9,16 +9,9 @@ export type IssueStatus =
 'Closed' |
 'Reopened';
 
-export type Severity = 'Critical' | 'High' | 'Medium' | 'Low';
-export type Priority = 'Urgent' | 'High' | 'Normal' | 'Low';
-export type IssueType =
-'Bug' |
-'UI/UX Issue' |
-'Functional Issue' |
-'Performance Issue' |
-'Security Issue' |
-'Enhancement' |
-'Task';
+export type Severity = 'Blocker' | 'Critical' | 'Major' | 'Minor';
+export type Priority = 'P1 (High)' | 'P2 (Medium)' | 'P3 (Low)';
+export type IssueType = string;
 export type Environment = 'Production' | 'Staging' | 'QA' | 'Development';
 export type Role = 'admin' | 'manager' | 'developer' | 'qa' | 'reporter';
 export type QAStatus = 'Not submitted' | 'Awaiting QA' | 'In testing' | 'Passed' | 'Failed';
