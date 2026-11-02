@@ -128,12 +128,15 @@ export function AttachmentPreview({ attachment, onClick, srcOverride }: {attachm
   const Icon = isImage ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
   // Resolve the image source: explicit override first, then previewUrl, then undefined (icon fallback).
   const imgSrc = srcOverride || attachment.previewUrl;
-  const clickable = isImage && (onClick || imgSrc);
+  const clickable = isImage && Boolean(onClick || imgSrc);
   return (
     <>
       <div
-        className={`flex h-20 items-center justify-center bg-canvas cursor-pointer relative ${clickable ? 'hover:bg-accent-soft hover:border-accent transition-colors' : ''}`}
-        onClick={clickable ? onClick : undefined}
+        className={`flex h-20 items-center justify-center bg-canvas relative ${clickable ? 'cursor-pointer hover:bg-accent-soft hover:border-accent transition-colors' : 'cursor-default'}`}
+        onClick={() => {
+          console.log('[AttachmentPreview] clicked, isImage:', isImage, 'hasOnClick:', Boolean(onClick), 'hasImgSrc:', Boolean(imgSrc));
+          onClick?.();
+        }}
       >
         {imgSrc && !broken ?
         <img src={imgSrc} alt={attachment.name} className="h-full w-full object-cover" onError={() => setBroken(true)} /> :

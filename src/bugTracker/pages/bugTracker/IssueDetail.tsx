@@ -17,7 +17,6 @@ import { AccessRestricted } from '../../components/ui/AccessRestricted';
 import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
@@ -212,11 +211,12 @@ export function IssueDetail() {
               <li key={a.id} className="overflow-hidden rounded-md border border-line">
                     <AttachmentPreview
                       attachment={a}
-                      srcOverride={a.previewUrl || (/\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name)
-                        ? `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`
-                        : undefined)}
-                      onClick={a.previewUrl || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name) ? () => {
+                      srcOverride={a.kind === 'image' || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name)
+                        ? (a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`)
+                        : undefined}
+                      onClick={(a.kind === 'image' || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name)) ? () => {
                         const url = a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`;
+                        console.log('[IssueDetail] opening image preview:', url);
                         setPreviewImage(url);
                       } : undefined} />
                   </li>
@@ -266,21 +266,29 @@ export function IssueDetail() {
       {dialogs}
 
       {previewImage && (
-        <Modal open={Boolean(previewImage)} onClose={() => setPreviewImage(null)} size="lg" title="Image preview">
-          <div className="flex flex-col items-center justify-center w-full h-full bg-canvas">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <div className="relative z-10 max-w-4xl max-h-[85vh] flex flex-col items-center justify-center bg-surface rounded-lg border border-line shadow-2xl p-4" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="absolute right-2 top-2 rounded-md p-2 text-ink-faint hover:text-ink transition-colors"
+              aria-label="Close preview">
+              <XIcon className="h-5 w-5" />
+            </button>
             <img
               src={previewImage}
               alt="Attachment preview"
               className="max-w-full max-h-[70vh] object-contain rounded-lg border border-line bg-canvas"
               onError={(e) => {
                 e.currentTarget.className = 'hidden';
+                document.getElementById('preview-error')?.removeAttribute('hidden');
               }}
             />
-            <p className="mt-2 text-xs text-ink-muted" id="preview-error" hidden>
+            <p id="preview-error" hidden className="mt-2 text-xs text-ink-muted">
               Could not load image preview. The attachment may no longer exist on the server.
             </p>
           </div>
-        </Modal>
+        </div>
       )}
 
       {deleteConfirm && (
