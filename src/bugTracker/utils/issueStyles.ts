@@ -25,5 +25,12 @@ export const priorityStyles: Record<Priority, {text: string;}> = {
   'P3 (Low)': { text: 'text-info' }
 };
 
-export const severityRank: Record<Severity, number> = { Blocker: 0, Critical: 1, Major: 2, Minor: 3 };
-export const priorityRank: Record<Priority, number> = { 'P1 (High)': 0, 'P2 (Medium)': 1, 'P3 (Low)': 2 };
+export const severityRank: Record<string, number> = { Blocker: 0, Critical: 1, Major: 2, Minor: 3 };
+export const priorityRank: Record<string, number> = { 'P1 (High)': 0, 'P2 (Medium)': 1, 'P3 (Low)': 2 };
+
+export function severityRankOf(severity: string): number {
+  return severityRank[severity] ?? 99;
+}
+export function priorityRankOf(priority: string): number {
+  return priorityRank[priority] ?? 99;
+}
