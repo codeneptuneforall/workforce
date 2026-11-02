@@ -115,7 +115,7 @@ const rolePermissions: Record<string, {
   admin: { manageSettings: true, triage: true, assign: true, setPriority: true, viewTeam: true, viewQAQueue: true, verifyQA: true, viewReports: true, editAnyIssue: true },
   manager: { manageSettings: false, triage: true, assign: true, setPriority: true, viewTeam: true, viewQAQueue: true, verifyQA: false, viewReports: true, editAnyIssue: true },
   developer: { manageSettings: false, triage: false, assign: false, setPriority: false, viewTeam: false, viewQAQueue: false, verifyQA: false, viewReports: false, editAnyIssue: false },
-  qa: { manageSettings: false, triage: false, assign: true, setPriority: false, viewTeam: false, viewQAQueue: true, verifyQA: true, viewReports: true, editAnyIssue: false },
+  qa: { manageSettings: false, triage: false, assign: false, setPriority: false, viewTeam: false, viewQAQueue: true, verifyQA: true, viewReports: true, editAnyIssue: false },
   reporter: { manageSettings: false, triage: false, assign: false, setPriority: false, viewTeam: false, viewQAQueue: false, verifyQA: false, viewReports: false, editAnyIssue: false }
 };
 
@@ -330,7 +330,9 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
     severity: String(body.severity ?? 'Medium'),
     priority: String(body.priority ?? 'Normal'),
     status: 'New',
-    assigneeId: body.assigneeId ?? null,
+    // The person reporting the bug (the logged-in QA engineer) is the assignee.
+    // There is no Assignee dropdown at creation; the reporter is assigned automatically.
+    assigneeId: String(body.assigneeId ?? btId),
     reporterId: btId,
     createdAt: now,
     updatedAt: now,
