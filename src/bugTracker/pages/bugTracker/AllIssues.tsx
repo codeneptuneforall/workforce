@@ -9,13 +9,14 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
-import { bugTrackerRoutes } from '../../data/navigation';
+import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import { useIssueTable } from '../../hooks/useIssueTable';
 import type { IssueFilterState, IssuePreset } from '../../types/bugTracker';
 
 export function AllIssues() {
   const { scopedIssues, projectScope, getProject } = useBugTracker();
   const [params] = useSearchParams();
+  const base = portalBase();
 
   const initial = useMemo<Partial<IssueFilterState>>(
     () => ({
@@ -44,7 +45,7 @@ export function AllIssues() {
         title="All issues"
         description={`${scopedIssues.length} issues across ${scopeLabel}`}
         actions={
-        <ButtonLink to={bugTrackerRoutes.report} variant="primary" className="bg-[#4c2e87] hover:bg-[#3a2266]" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
+        <ButtonLink to={`${base}/report`} variant="primary" className="bg-[#4c2e87] hover:bg-[#3a2266]" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
             Report a bug
           </ButtonLink>
         } />
@@ -59,7 +60,7 @@ export function AllIssues() {
           title="No issues yet"
           description="Nothing has been reported in this project. Issues you and your team report will appear here."
           action={
-          <ButtonLink to={bugTrackerRoutes.report} variant="primary">
+          <ButtonLink to={`${base}/report`} variant="primary">
                 Report the first bug
               </ButtonLink>
           } /> :

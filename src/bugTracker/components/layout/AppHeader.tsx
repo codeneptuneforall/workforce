@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MenuIcon, SearchIcon } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { bugTrackerRoutes } from '../../data/navigation';
+import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ProjectSelector } from './ProjectSelector';
 import { RolePreviewSwitcher } from './RolePreviewSwitcher';
@@ -11,15 +11,16 @@ export function AppHeader({ onOpenMenu }: {onOpenMenu: () => void;}) {
   const location = useLocation();
   const [params] = useSearchParams();
   const [query, setQuery] = useState('');
+  const base = portalBase();
 
   useEffect(() => {
-    if (location.pathname === bugTrackerRoutes.issues) setQuery(params.get('q') ?? '');
-  }, [location.pathname, params]);
+    if (location.pathname === `${base}/issues`) setQuery(params.get('q') ?? '');
+  }, [location.pathname, params, base]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();
-    navigate(q ? `${bugTrackerRoutes.issues}?q=${encodeURIComponent(q)}` : bugTrackerRoutes.issues);
+    navigate(q ? `${base}/issues?q=${encodeURIComponent(q)}` : `${base}/issues`);
   };
 
   return (

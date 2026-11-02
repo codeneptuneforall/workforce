@@ -12,7 +12,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel } from '../../components/ui/Panel';
 import { SelectField } from '../../components/ui/SelectField';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
-import { bugTrackerRoutes } from '../../data/navigation';
+import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import { computeIssueMetrics } from '../../utils/issueMetrics';
 import { isOpenStatus } from '../../utils/workflow';
 
@@ -26,6 +26,7 @@ const rangeOptions = [
 export function Overview() {
   const { scopedIssues, currentUser, accessibleProjects, projectScope, setProjectScope } = useBugTracker();
   const [range, setRange] = useState('all');
+  const base = portalBase();
 
   const issues = useMemo(() => {
     if (range === 'all') return scopedIssues;
@@ -54,7 +55,7 @@ export function Overview() {
             className="w-44" />
           
             <SelectField id="overview-range" compact ariaLabel="Date range" value={range} onChange={setRange} options={rangeOptions} className="w-52" />
-            <ButtonLink to={bugTrackerRoutes.report} variant="primary" className="bg-[#4c2e87] hover:bg-[#3a2266]" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
+            <ButtonLink to={`${base}/report`} variant="primary" className="bg-[#4c2e87] hover:bg-[#3a2266]" icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}>
               Report a bug
             </ButtonLink>
           </>
@@ -78,7 +79,7 @@ export function Overview() {
           className="lg:col-span-2"
           bodyClassName=""
           action={
-          <Link to={bugTrackerRoutes.issues} className="text-xs font-medium text-accent hover:text-accent-hover">
+          <Link to={`${base}/issues`} className="text-xs font-medium text-accent hover:text-accent-hover">
               View all issues
             </Link>
           }>
