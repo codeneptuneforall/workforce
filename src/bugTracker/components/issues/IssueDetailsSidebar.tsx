@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
-import { bugTrackerRoutes } from '../../data/navigation';
+import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import type { Issue } from '../../types/bugTracker';
 import { formatDate, formatDateTime } from '../../utils/dates';
 import { dueLabel } from '../../utils/issueMetrics';
@@ -24,6 +24,7 @@ export function IssueDetailsSidebar({ issue }: {issue: Issue;}) {
   const reporter = getEmployee(issue.reporterId);
   const due = dueLabel(issue);
   const verifier = getEmployee(issue.qa.verifierId);
+  const base = portalBase();
 
   const rows: {label: string;value: React.ReactNode;}[] = [
   { label: 'Status', value: <IssueStatusBadge status={issue.status} /> },
@@ -112,7 +113,7 @@ export function IssueDetailsSidebar({ issue }: {issue: Issue;}) {
             if (!related) return null;
             return (
               <li key={key}>
-                  <Link to={bugTrackerRoutes.issue(key)} className="flex items-center gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-canvas">
+                  <Link to={`${base}/issues/${key}`} className="flex items-center gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-canvas">
                     <span className="font-mono text-xs text-ink-subtle">{key}</span>
                     <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{related.title}</span>
                     <IssueStatusBadge status={related.status} />

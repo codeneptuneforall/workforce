@@ -10,13 +10,14 @@ import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
-import { bugTrackerRoutes } from '../../data/navigation';
+import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import { useIssueForm } from '../../hooks/useIssueForm';
 import type { Issue } from '../../types/bugTracker';
 
 export function ReportBug() {
   const { createIssue, projectScope, getEmployee, getProject } = useBugTracker();
   const navigate = useNavigate();
+  const base = portalBase();
   const initialProject = projectScope === 'all' ? '' : projectScope;
   const form = useIssueForm(initialProject);
   const [created, setCreated] = useState<Issue | null>(null);
@@ -78,7 +79,7 @@ export function ReportBug() {
             </p>
           </div>
           <div className="mt-6 flex flex-wrap gap-2">
-            <ButtonLink to={bugTrackerRoutes.issue(created.key)} variant="primary">
+            <ButtonLink to={`${base}/issues/${created.key}`} variant="primary">
               View issue
             </ButtonLink>
             <Button
@@ -98,7 +99,7 @@ export function ReportBug() {
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 sm:px-6">
       <PageHeader title="Report a bug" description="Clear reproduction steps help developers fix issues faster." />
-      <IssueForm draft={form.draft} errors={form.errors} setField={form.setField} onSubmit={submit} onCancel={() => navigate(bugTrackerRoutes.issues)} submitting={submitting} />
+      <IssueForm draft={form.draft} errors={form.errors} setField={form.setField} onSubmit={submit} onCancel={() => navigate(`${base}/issues`)} submitting={submitting} />
     </div>);
 
 }

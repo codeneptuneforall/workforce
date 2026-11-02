@@ -21,7 +21,7 @@ import type { RolePermissions } from '../types/bugTracker';
 /** Resolve the Bug Tracker URL base for the current portal
  *  (management or employee) from the browser location, so links work from
  *  any bug-tracker sub-route without hardcoding /management or /employee. */
-function portalBase(): string {
+export function portalBase(): string {
   const m = typeof window !== 'undefined' && window.location.pathname.match(/^\/(management|employee)\/bug-tracker/);
   return m ? m[0] : '/management/bug-tracker';
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowUpRightIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { bugTrackerRoutes } from '../../data/navigation';
+import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import type { IssueMetrics } from '../../utils/issueMetrics';
 
 interface MetricOverviewProps {
@@ -9,7 +9,8 @@ interface MetricOverviewProps {
 }
 
 export function MetricOverview({ metrics }: MetricOverviewProps) {
-  const link = (preset: string) => `${bugTrackerRoutes.issues}?preset=${preset}`;
+  const base = portalBase();
+  const link = (preset: string) => `${base}/issues?preset=${preset}`;
   const secondary: {label: string;value: number;to: string;tone?: 'danger' | 'warning';}[] = [
   { label: 'In progress', value: metrics.inProgress, to: link('in-progress') },
   { label: 'Critical & high', value: metrics.criticalHigh, to: link('critical-high'), tone: metrics.criticalHigh ? 'danger' : undefined },
