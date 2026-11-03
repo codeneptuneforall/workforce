@@ -35,7 +35,7 @@ authRouter.post('/login', async (req, res) => {
     res.status(401).json({ error: 'The email or password is incorrect.' });
     return;
   }
-  
+
   const now = new Date();
   // Render runs in UTC; the office operates in IST (UTC+5:30). Shift the clock to IST
   // before checking the 10:15 AM late cutoff, otherwise a 10:51 AM IST login reads as
@@ -46,18 +46,31 @@ authRouter.post('/login', async (req, res) => {
   const minute = istNow.getUTCMinutes();
   const isLate = hour > 10 || (hour === 10 && minute >= 15);
 
-  // Ask for a late reason only on the first login of the day (in IST).
-  // If the employee already logged in today (before or after 10:15), do not ask again
-  // even if they log out and log back in after 10:15.
   // Use IST date boundaries expressed in UTC (MongoDB stores dates as UTC).
   const istYear = istNow.getUTCFullYear();
   const istMonth = istNow.getUTCMonth();
   const istDay = istNow.getUTCDate();
   const startOfIstDay = new Date(Date.UTC(istYear, istMonth, istDay, 0, 0, 0, 0));
   const endOfIstDay = new Date(Date.UTC(istYear, istMonth, istDay, 23, 59, 59, 999));
+
   const alreadyLoggedInToday = !!user.lastLoginAt &&
     new Date(user.lastLoginAt) >= startOfIstDay &&
     new Date(user.lastLoginAt) <= endOfIstDay;
+
+  const alreadyDeclaredWfhToday = !!user.workFromHomeAt &&
+    new Date(user.workFromHomeAt) >= startOfIstDay &&
+    new Date(user.workFromHomeAt) <= endOfIstDay;
+
+  const workFromHome = req.body?.workFromHome === true || req.body?.workFromHome === 'true';
+
+  // Ask for WFH status only on the first login of the day (in IST).
+  if (!alreadyDeclaredWfhToday && user.role === 'employee') {
+    if (req.body?.workFromHome === undefined) {
+      res.status(400).json({ error: 'Are you working from home today?', code: 'wfh_required' });
+      return;
+    }
+    await UserModel.updateOne({ _id: user._id }, { $set: { workFromHome, workFromHomeAt: now } });
+  }
 
   if (isLate && user.role === 'employee' && !alreadyLoggedInToday) {
     if (!lateReason) {
@@ -67,7 +80,7 @@ authRouter.post('/login', async (req, res) => {
     await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now, lateLoginReason: lateReason, lateLoginAt: now } });
     await LateLoginModel.create({ _id: `ll-${Date.now()}-${Math.random().toString(36).slice(2)}`, employeeId: user.employeeId ?? user._id, name: user.name, reason: lateReason, at: now });
     invalidateCache();
-  } else {
+  } else if (!alreadyLoggedInToday) {
     await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: now } });
     invalidateCache();
   }

@@ -21,6 +21,8 @@ export interface UserDocument {
   lastLoginAt?: Date;
   lateLoginReason?: string;
   lateLoginAt?: Date;
+  workFromHome?: boolean;
+  workFromHomeAt?: Date;
 }
 
 export const toAuthUser = (user: UserDocument): AuthUser => ({
@@ -31,7 +33,8 @@ export const toAuthUser = (user: UserDocument): AuthUser => ({
   title: user.title,
   employeeId: user.employeeId,
   canManagePayroll: user.canManagePayroll,
-  mustChangePassword: user.mustChangePassword
+  mustChangePassword: user.mustChangePassword,
+  workFromHome: user.workFromHome
 });
 
 export const hashPassword = (plain: string): Promise<string> =>

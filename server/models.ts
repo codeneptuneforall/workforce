@@ -37,7 +37,9 @@ const UserSchema = new Schema(
     passwordChangedAt: { type: Date },
     lastLoginAt: { type: Date },
     lateLoginReason: { type: String },
-    lateLoginAt: { type: Date }
+    lateLoginAt: { type: Date },
+    workFromHome: { type: Boolean },
+    workFromHomeAt: { type: Date }
   },
   { _id: false, versionKey: false, minimize: false }
 );

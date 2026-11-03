@@ -145,6 +145,7 @@ export function App() {
                   <Route path="issues/:issueKey" element={<IssueDetail />} />
                   <Route path="report" element={<ReportBug />} />
                   <Route path="board" element={<Kanban />} />
+                  <Route path="qa" element={<QAVerification />} />
                 </Route>
 )}
                 <Route path="*" element={<Navigate to="dashboard" replace />} />

@@ -9,6 +9,7 @@ export interface AccountSummary {
   title: string;
   employeeId?: string;
   canManagePayroll: boolean;
+  workFromHome: boolean;
 }
 
 /**
@@ -77,8 +78,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  login: (email: string, password: string, lateReason?: string) =>
-    request<{ user: AuthUser }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, lateReason }) }),
+  login: (email: string, password: string, lateReason?: string, workFromHome?: boolean) =>
+    request<{ user: AuthUser }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, lateReason, workFromHome }) }),
 
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
 

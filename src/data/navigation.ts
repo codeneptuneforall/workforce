@@ -34,6 +34,7 @@ export interface NavItem {
   to: string;
   icon: LucideIcon;
   payrollOnly?: boolean;
+  qaOnly?: boolean;
   badgeKey?: 'notifications' | 'leaves' | 'timesheets';
 }
 
@@ -139,7 +140,8 @@ export const employeeNav: NavGroup[] = [{
 { label: 'Overview', to: '/employee/bug-tracker', icon: GaugeIcon },
 { label: 'My Issues', to: '/employee/bug-tracker/my-issues', icon: UserCheckIcon },
   { label: 'Report a Bug', to: '/employee/bug-tracker/report', icon: AlertCircleIcon },
-{ label: 'Kanban Board', to: '/employee/bug-tracker/board', icon: SquareKanbanIcon }]
+{ label: 'Kanban Board', to: '/employee/bug-tracker/board', icon: SquareKanbanIcon },
+  { label: 'QA Verification', to: '/employee/bug-tracker/qa', icon: ClipboardCheckIcon, qaOnly: true }]
 }];
 
 

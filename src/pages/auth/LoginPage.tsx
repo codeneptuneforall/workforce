@@ -28,6 +28,8 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [lateReason, setLateReason] = useState('');
   const [needLateReason, setNeedLateReason] = useState(false);
+  const [workFromHome, setWorkFromHome] = useState<'yes' | 'no' | null>(null);
+  const [needWfh, setNeedWfh] = useState(false);
   const redirectHandled = useRef(false);
 
   const emailError = !email ? 'Enter your work email.' : !/^\S+@\S+\.\S+$/.test(email) ? 'Enter a valid email address.' : null;
@@ -50,14 +52,23 @@ export function LoginPage() {
     setTouched(true);
     setError(null);
     if (emailError || pwError) return;
+    if (needWfh && workFromHome === null) {
+      setError('Please tell us if you are working from home today.');
+      return;
+    }
     if (needLateReason && !lateReason.trim()) {
       setError('Please provide a reason for being late.');
       return;
     }
     setPending(true);
-    const res = await login(email, password, needLateReason ? lateReason : undefined);
+    const res = await login(email, password, needLateReason ? lateReason : undefined, needWfh ? workFromHome === 'yes' : undefined);
     setPending(false);
     if (!res.ok || !res.user) {
+      if ((res as any).code === 'wfh_required') {
+        setNeedWfh(true);
+        setError(res.error ?? 'Are you working from home today?');
+        return;
+      }
       if ((res as any).code === 'late_reason_required') {
         setNeedLateReason(true);
         setError(res.error ?? 'You are late. Please provide a reason.');
@@ -95,6 +106,22 @@ export function LoginPage() {
         {needLateReason && (
           <Field label="Reason for being late (required after 10:15)" required>
             {(id) => <Input id={id} value={lateReason} onChange={(e) => setLateReason(e.target.value)} placeholder="e.g., Traffic jam, Vehicle breakdown" />}
+          </Field>
+        )}
+        {needWfh && (
+          <Field label="Are you working from home today?" required>
+            {(id) => (
+              <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={id}>
+                <label className="flex items-center gap-2 rounded-lg border border-line p-3 hover:bg-canvas cursor-pointer">
+                  <input type="radio" id={`${id}-yes`} name={id} value="yes" checked={workFromHome === 'yes'} onChange={() => setWorkFromHome('yes')} className="h-4 w-4 text-brand-700" />
+                  <span className="text-sm text-ink">Yes, WFH</span>
+                </label>
+                <label className="flex items-center gap-2 rounded-lg border border-line p-3 hover:bg-canvas cursor-pointer">
+                  <input type="radio" id={`${id}-no`} name={id} value="no" checked={workFromHome === 'no'} onChange={() => setWorkFromHome('no')} className="h-4 w-4 text-brand-700" />
+                  <span className="text-sm text-ink">No, from office</span>
+                </label>
+              </div>
+            )}
           </Field>
         )}
         <div className="flex justify-end">

@@ -50,7 +50,8 @@ apiRouter.get('/accounts', requireAuth, requirePasswordChanged, requireRole('man
       role: a.role,
       title: a.title ?? '',
       employeeId: a.employeeId ?? undefined,
-      canManagePayroll: !!a.canManagePayroll
+      canManagePayroll: !!a.canManagePayroll,
+      workFromHome: !!a.workFromHome
     }))
   });
 });

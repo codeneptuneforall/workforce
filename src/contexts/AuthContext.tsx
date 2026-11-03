@@ -8,7 +8,7 @@ interface AuthValue {
   user: AuthUser | null;
   /** True while the initial "who am I" request is still running. */
   initialising: boolean;
-  login: (email: string, password: string, lateReason?: string) => Promise<Result & {user?: AuthUser;code?: string;}>;
+  login: (email: string, password: string, lateReason?: string, workFromHome?: boolean) => Promise<Result & {user?: AuthUser;code?: string;}>;
   logout: () => Promise<void>;
   expire: () => void;
   changePassword: (current: string, next: string) => Promise<Result>;
@@ -58,9 +58,9 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
     navigate('/session-expired', { replace: true });
   }, [navigate]);
 
-  const login = useCallback(async (email: string, password: string, lateReason?: string) => {
+  const login = useCallback(async (email: string, password: string, lateReason?: string, workFromHome?: boolean) => {
     try {
-      const res: any = await api.login(email, password, lateReason);
+      const res: any = await api.login(email, password, lateReason, workFromHome);
       setUser(res.user);
       if (res.token && typeof localStorage !== 'undefined') {
         localStorage.setItem('wf_token', res.token);

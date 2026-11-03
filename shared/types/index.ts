@@ -16,7 +16,10 @@ export interface UserAccount {
 }
 
 /** The safe, client-facing shape of the signed-in account. Never carries secrets. */
-export type AuthUser = Omit<UserAccount, 'active'>;
+export type AuthUser = Omit<UserAccount, 'active'> & {
+  /** Whether the employee declared themselves as working from home today (set at login). */
+  workFromHome?: boolean;
+};
 
 export type EmployeeStatus = 'Active' | 'Inactive';
 

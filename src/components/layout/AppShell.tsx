@@ -28,8 +28,12 @@ export function AppShell({ portal }: {portal: Role;}) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const groups = portal === 'management' ? managementNav : employeeNav;
+  const isQaUser = Boolean(user?.title && (/qa|quality/i).test(user.title));
   const visibleGroups = groups.
-  map((g) => ({ ...g, items: g.items.filter((i) => !i.payrollOnly || user?.canManagePayroll) })).
+  map((g) => ({ ...g, items: g.items.filter((i) => 
+    (!i.payrollOnly || user?.canManagePayroll) && 
+    (!i.qaOnly || isQaUser)
+  )})).
   filter((g) => g.items.length && (BUG_TRACKER_ENABLED || g.label !== 'Bug Tracker'));
   const tabs = portal === 'management' ? managementMobileTabs : employeeMobileTabs;
   const audience = portal === 'management' ? 'management' : user?.employeeId ?? '';
