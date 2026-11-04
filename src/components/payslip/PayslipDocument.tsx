@@ -2,7 +2,7 @@ import type { PayslipData } from '@shared/types';
 import { fmtINR, rupeesInWords } from '@shared/domain/currency';
 import { monthLabel } from '@shared/domain/payroll';
 import { fmtDate } from '@shared/domain/time';
-import { Logo } from '../ui/Logo';
+import logoImage from '../../assets/brand/code-neptune-logo.jpg';
 
 interface Props {
   data: PayslipData;
@@ -37,10 +37,12 @@ export function PayslipDocument({ data, version, watermark }: Props) {
         </div>
       }
       <header className="flex flex-col gap-4 border-b-2 border-brand-700 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <Logo />
+        <img src={logoImage} alt="Code Neptune" className="h-12 w-auto shrink-0" />
         <div className="sm:text-right">
           <p className="text-[15px] font-bold tracking-wide text-brand-800">{data.companyName}</p>
           <p className="max-w-sm text-[11px] text-ink-muted sm:ml-auto">{data.companyAddress}</p>
+          <p className="max-w-sm text-[11px] text-ink-muted sm:ml-auto">{data.companyEmail ?? 'info@codeneptune.com'}</p>
+          <p className="max-w-sm text-[11px] text-ink-muted sm:ml-auto">{data.companyPhone ?? '+91 63829 58105'}</p>
         </div>
       </header>
       <h2 className="mt-4 text-center text-[13px] font-semibold">Payslip for the month of {monthLabel(data.month)}</h2>

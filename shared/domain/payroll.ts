@@ -294,6 +294,8 @@ export function buildPayslipData(rec: PayrollRecord, settings: Settings): Paysli
   return {
     companyName: settings.companyName,
     companyAddress: settings.companyAddress,
+    companyEmail: settings.companyEmail,
+    companyPhone: settings.companyPhone,
     month: rec.month,
     employee: {
       name: rec.employee.name,

@@ -91,6 +91,8 @@ const EMPTY_STATE: AppState = {
   settings: {
     companyName: '',
     companyAddress: '',
+    companyEmail: '',
+    companyPhone: '',
     currency: 'INR',
     timezone: 'Asia/Kolkata (IST)',
     confidentialityNote: '',

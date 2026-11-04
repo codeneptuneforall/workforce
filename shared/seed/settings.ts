@@ -3,6 +3,8 @@ import type { Settings } from '../types';
 export const defaultSettings: Settings = {
   companyName: 'CODE NEPTUNE TECHNOLOGIES PVT. LTD.',
   companyAddress: 'No. 12, Sample Tech Park, Outer Ring Road, Bengaluru, Karnataka 560103',
+  companyEmail: 'info@codeneptune.com',
+  companyPhone: '+91 63829 58105',
   currency: 'INR',
   timezone: 'Asia/Kolkata (IST)',
   confidentialityNote: 'This payslip is confidential and intended only for the named employee.',

@@ -28,16 +28,20 @@ export function ManagementDashboard() {
   const [detail, setDetail] = useState<DayCompliance | null>(null);
   const [review, setReview] = useState<DayCompliance | null>(null);
   const [wfhByEmail, setWfhByEmail] = useState<Map<string, boolean>>(new Map());
+  const [wfhByEmployeeId, setWfhByEmployeeId] = useState<Map<string, boolean>>(new Map());
 
   useEffect(() => {
     let active = true;
     api.accounts().then(({ accounts }) => {
       if (!active) return;
-      const map = new Map<string, boolean>();
+      const byEmail = new Map<string, boolean>();
+      const byEmployeeId = new Map<string, boolean>();
       for (const a of accounts) {
-        if (a.email) map.set(a.email.toLowerCase(), !!a.workFromHome);
+        if (a.email) byEmail.set(a.email.toLowerCase(), !!a.workFromHome);
+        if (a.employeeId) byEmployeeId.set(a.employeeId, !!a.workFromHome);
       }
-      setWfhByEmail(map);
+      setWfhByEmail(byEmail);
+      setWfhByEmployeeId(byEmployeeId);
     }).catch(() => { /* accounts endpoint is management-only; ignore if unavailable */ });
     return () => { active = false; };
   }, []);
@@ -118,7 +122,7 @@ export function ManagementDashboard() {
           </ul>
           <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-line pt-4 text-sm sm:grid-cols-4">
             <div><dt className="text-xs text-ink-muted">Total employees</dt><dd className="font-semibold tnum">{active.length}</dd></div>
-            <div><dt className="text-xs text-ink-muted">Working from home today</dt><dd className="font-semibold tnum">{active.filter((e) => wfhByEmail.get(e.email.toLowerCase())).length}</dd></div>
+            <div><dt className="text-xs text-ink-muted">Working from home today</dt><dd className="font-semibold tnum">{active.filter((e) => wfhByEmail.get(e.email.toLowerCase()) || wfhByEmployeeId.get(e.id)).length}</dd></div>
             <div><dt className="text-xs text-ink-muted">Pending timesheets</dt><dd className="font-semibold tnum">{pendingTs}</dd></div>
             <div><dt className="text-xs text-ink-muted">Pending leave</dt><dd className="font-semibold tnum">{pendingLeave}</dd></div>
             <div><dt className="text-xs text-ink-muted">Holidays (next 30 days)</dt><dd className="truncate font-semibold">{nextHolidays.length ? `${nextHolidays[0].name} · ${fmtDate(nextHolidays[0].date, 'd MMM')}` : 'None'}</dd></div>
@@ -152,7 +156,7 @@ export function ManagementDashboard() {
               const e = active.find((x) => x.id === d.employeeId)!;
               return (
                 <Tr key={d.employeeId} onClick={() => setDetail(d)}>
-                  <Td><div className="flex items-center gap-3"><Avatar name={e.name} size="sm" src={e.photoUrl} /><div><p className="font-medium">{e.name}</p>{wfhByEmail.get(e.email.toLowerCase()) ? <span className="ml-1 inline-flex h-5 items-center rounded-full bg-info-bg px-2 text-[10px] font-semibold text-info"><span className="mr-1 h-1.5 w-1.5 rounded-full bg-info" />WFH</span> : null}<p className="text-xs text-ink-muted">{e.designation}</p></div></div></Td>
+                  <Td><div className="flex items-center gap-3"><Avatar name={e.name} size="sm" src={e.photoUrl} /><div><p className="font-medium">{e.name}</p>{wfhByEmail.get(e.email.toLowerCase()) || wfhByEmployeeId.get(e.id) ? <span className="ml-1 inline-flex h-5 items-center rounded-full bg-info-bg px-2 text-[10px] font-semibold text-info"><span className="mr-1 h-1.5 w-1.5 rounded-full bg-info" />WFH</span> : null}<p className="text-xs text-ink-muted">{e.designation}</p></div></div></Td>
                   <Td className="whitespace-nowrap text-ink-muted">{team(e.teamId)?.name}</Td>
                   <Td align="right">{fmtMin(d.expectedMin)}</Td>
                   <Td align="right" className="font-medium">{fmtMin(d.completedMin)}</Td>

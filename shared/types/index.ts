@@ -280,6 +280,8 @@ export interface PayslipLine {
 export interface PayslipData {
   companyName: string;
   companyAddress: string;
+  companyEmail: string;
+  companyPhone: string;
   month: string;
   employee: {
     name: string;
@@ -359,6 +361,8 @@ export type LeaveTreatment = 'not_configured' | 'paid' | 'unpaid';
 export interface Settings {
   companyName: string;
   companyAddress: string;
+  companyEmail: string;
+  companyPhone: string;
   currency: string;
   timezone: string;
   confidentialityNote: string;

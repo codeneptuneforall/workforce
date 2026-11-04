@@ -14,6 +14,7 @@ import uploadRouter from './routes/upload';
 import { bugTrackerRouter } from './routes/bugTracker';
 import { io } from './socket';
 import { startAutoSubmitCron } from './cron/autoSubmitTimesheets';
+import { startAutoPauseCron } from './cron/autoPauseBreaks';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(dir, '../dist/client');
@@ -121,6 +122,8 @@ async function start(): Promise<void> {
   // Auto-submit timesheets for ended weeks (runs immediately on startup, then
   // every Saturday at 00:00).
   startAutoSubmitCron();
+  // Auto-pause running sessions during break hours (runs every minute).
+  startAutoPauseCron();
   // Bind to all interfaces: hosted platforms (Render, Railway, Koyeb, Fly) reach
   // the container from outside, so 127.0.0.1 would be unreachable.
   httpServer.listen(config.port, '0.0.0.0', () => {

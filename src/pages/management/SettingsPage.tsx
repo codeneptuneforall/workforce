@@ -50,12 +50,16 @@ export function SettingsPage() {
               <Field label="Company name" required>{(id) => <Input id={id} value={f.companyName} onChange={(e) => setF({ ...f, companyName: e.target.value })} />}</Field>
               <Field label="Address">{(id) => <Textarea id={id} value={f.companyAddress} onChange={(e) => setF({ ...f, companyAddress: e.target.value })} />}</Field>
               <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Company email">{ (id) => <Input id={id} value={f.companyEmail} onChange={(e) => setF({ ...f, companyEmail: e.target.value })} placeholder="info@codeneptune.com" />}</Field>
+                <Field label="Company phone">{ (id) => <Input id={id} value={f.companyPhone} onChange={(e) => setF({ ...f, companyPhone: e.target.value })} placeholder="+91 63829 58105" />}</Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Currency">{(id) => <Input id={id} value={f.currency} readOnly />}</Field>
                 <Field label="Time zone" hint="Used for day boundaries and leave notice.">{(id) => <Input id={id} value={f.timezone} readOnly />}</Field>
               </div>
               <Field label="Payslip confidentiality note" hint="Use company-approved wording only.">{(id) => <Textarea id={id} value={f.confidentialityNote} onChange={(e) => setF({ ...f, confidentialityNote: e.target.value })} />}</Field>
               <p className="text-xs text-ink-muted">Company logo uploads are not available; the Code Neptune mark is used.</p>
-              <div className="flex justify-end"><Button loading={pending} disabled={!f.companyName.trim()} onClick={() => save('Company settings', { companyName: f.companyName.trim(), companyAddress: f.companyAddress, confidentialityNote: f.confidentialityNote })}>Save company details</Button></div>
+              <div className="flex justify-end"><Button loading={pending} disabled={!f.companyName.trim()} onClick={() => save('Company settings', { companyName: f.companyName.trim(), companyAddress: f.companyAddress, companyEmail: f.companyEmail, companyPhone: f.companyPhone, confidentialityNote: f.confidentialityNote })}>Save company details</Button></div>
             </div>
           </Panel>
         }

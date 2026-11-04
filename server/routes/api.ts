@@ -39,7 +39,7 @@ apiRouter.get('/state', requireAuth, requirePasswordChanged, async (req, res) =>
  */
 apiRouter.get('/accounts', requireAuth, requirePasswordChanged, requireRole('management'), async (_req, res) => {
   const accounts = await UserModel.find({ active: true })
-    .select({ name: 1, email: 1, role: 1, title: 1, employeeId: 1, canManagePayroll: 1 })
+    .select({ name: 1, email: 1, role: 1, title: 1, employeeId: 1, canManagePayroll: 1, workFromHome: 1 })
     .sort({ name: 1 })
     .lean();
   res.json({
