@@ -130,6 +130,9 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     // This ensures the PDF uses the exact same Inter font weights as the preview.
     await page.evaluateHandle('document.fonts.ready');
 
+    // Additional wait to ensure all React rendering and CSS is complete
+    await page.waitForTimeout(500);
+
     const pdfBuffer = await page.pdf({
       format: 'A4',
       landscape: false,
@@ -146,7 +149,11 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     // Verify it starts with PDF magic bytes
     const pdfHeader = pdfBuffer.slice(0, 5).toString('ascii');
     if (pdfHeader !== '%PDF-') {
-      throw new Error('Generated PDF is invalid (missing PDF header)');
+      throw new Error(`Generated PDF is invalid (missing PDF header, got: "${pdfHeader}")`);
+    }
+
+    if (pdfBuffer.length < 1000) {
+      throw new Error(`Generated PDF is suspiciously small (${pdfBuffer.length} bytes)`);
     }
 
     await context.close();
@@ -158,6 +165,8 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     const safeMonth = (monthName ?? '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
     const safeYear = (year ?? '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
     const fileName = `${safeName}_${safeMonth}_${safeYear}.pdf`;
+
+    console.log(`[payslip/download] Generated PDF for ${payslipId}: ${pdfBuffer.length} bytes`);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -204,8 +213,8 @@ async function applyAccountSideEffects(
 }
 
 /**
- * Apply one command. The server owns the rules, the permissions and the MongoDB write;
- * the browser only states what the user asked for.
+ * Apply one command. The server owns the rules, the permissions and the MongoDB write; the
+ * browser only states what the user asked for.
  */
 apiRouter.post('/state/mutate', requireAuth, requirePasswordChanged, async (req, res) => {
   const op = String(req.body?.op ?? '');
