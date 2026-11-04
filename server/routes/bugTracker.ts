@@ -339,7 +339,9 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
     dueDate: body.dueDate ?? null,
     feature: String(body.feature ?? ''),
     environment: String(body.environment ?? 'Production'),
-    stepsToReproduce: Array.isArray(body.stepsToReproduce) ? body.stepsToReproduce : [],
+    stepsToReproduce: Array.isArray(body.stepsToReproduce)
+      ? body.stepsToReproduce
+      : String(body.stepsToReproduce ?? '').split('\n').filter((s: string) => s.trim().length > 0),
     expectedResult: String(body.expectedResult ?? ''),
     actualResult: String(body.actualResult ?? ''),
     labels: Array.isArray(body.labels) ? body.labels : [],
@@ -390,6 +392,11 @@ bugTrackerRouter.patch('/issues/:key', issueLimiter, async (_req, res) => {
   }
   updates.updatedAt = new Date().toISOString();
   Object.assign(issue, updates);
+  // Normalise stepsToReproduce: the report form sends a multi-line string;
+  // store it as an array so the issue detail page can render each step.
+  if (body.stepsToReproduce !== undefined && !Array.isArray(issue.stepsToReproduce)) {
+    issue.stepsToReproduce = String(body.stepsToReproduce).split('\n').filter((s: string) => s.trim().length > 0);
+  }
   await issue.save();
 
   const changed = Object.keys(updates).filter(k => k !== 'updatedAt').join(', ');

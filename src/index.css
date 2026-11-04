@@ -61,14 +61,17 @@ body {
     box-shadow: none !important;
     border: none !important;
     background: white !important;
-    break-inside: avoid;
+    break-inside: auto;
     box-sizing: border-box !important;
   }
   .print-area p,
   .print-area h2,
   .print-area dl,
   .print-area table,
-  .print-area footer {
+  .print-area footer,
+  .print-area section,
+  .print-area .take-home {
+    break-inside: avoid;
     margin-bottom: inherit !important;
   }
   .print-area table {

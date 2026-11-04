@@ -99,7 +99,7 @@ export function PayslipDocument({ data, version, watermark }: Props) {
         </tbody>
       </table>
 
-      <div className="mt-5 flex flex-col gap-1 rounded border border-brand-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="take-home mt-5 flex flex-col gap-1 rounded border border-brand-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[11px] text-brand-800">Take Home (Gross Salary − Total Deduction)</p>
           <p className="text-[11px] italic text-ink-muted">{rupeesInWords(data.takeHome)}</p>
