@@ -117,6 +117,8 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     // Set viewport to A4 width at 96 DPI (794×1123px) so Tailwind `sm:` breakpoints
     // apply correctly and the payslip renders at its intended width.
     await page.setViewportSize({ width: 794, height: 1123 });
+    // Emulate print media so @media print CSS is applied
+    await page.emulateMedia({ media: 'print' });
     // Use domcontentloaded instead of networkidle: we only need the React
     // component to render, not every background network request.
     await page.goto(printUrl, { waitUntil: 'domcontentloaded' });
@@ -133,7 +135,19 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
       landscape: false,
       margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
       printBackground: true,
+      preferCSSPageSize: true,
     });
+
+    // Validate that we got a valid PDF buffer
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      throw new Error('Generated PDF is empty');
+    }
+
+    // Verify it starts with PDF magic bytes
+    const pdfHeader = pdfBuffer.slice(0, 5).toString('ascii');
+    if (pdfHeader !== '%PDF-') {
+      throw new Error('Generated PDF is invalid (missing PDF header)');
+    }
 
     await context.close();
     context = null;
