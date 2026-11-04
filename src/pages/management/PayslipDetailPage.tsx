@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { DownloadIcon, FilePenLineIcon, PrinterIcon, SendIcon } from 'lucide-react';
+import { DownloadIcon, FilePenLineIcon, SendIcon } from 'lucide-react';
 import { PayslipDocument } from '../../components/payslip/PayslipDocument';
-import { printPayslip } from '../../components/payslip/PayslipViewer';
+import { downloadPayslip, buildPayslipFileName } from '../../components/payslip/PayslipViewer';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -32,7 +32,11 @@ export function PayslipDetailPage() {
     <div>
       <PageHeader title={`${p.data.employee.name} · ${monthLabel(p.month)}`} back={{ to: '/management/payslips', label: 'Payslips' }}
       description={<span className="flex items-center gap-2">Version {p.version} <StatusBadge status={p.status} /></span>}
-      actions={<><Button variant="secondary" icon={PrinterIcon} onClick={printPayslip}>Print</Button><Button variant="secondary" icon={DownloadIcon} onClick={printPayslip}>Download PDF</Button></>} />
+      actions={<><Button variant="secondary" icon={DownloadIcon} onClick={async () => {
+        if (!p) return;
+        const fileName = buildPayslipFileName(p.data.employee.name, p.month);
+        await downloadPayslip(p.id, fileName);
+      }}>Download PDF</Button></>} />
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <div className="overflow-x-auto rounded-xl border border-line bg-canvas p-3 sm:p-6">
           <div className="rounded-md border border-line shadow-card"><PayslipDocument data={p.data} version={p.version} watermark={p.status === 'Generated' ? 'Draft' : p.status === 'Superseded' ? 'Superseded' : undefined} /></div>

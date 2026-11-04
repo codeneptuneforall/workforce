@@ -33,7 +33,7 @@ body {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 0mm;
   }
   body {
     margin: 0 !important;
@@ -51,35 +51,54 @@ body {
   .print-area * {
     visibility: visible;
   }
+  .print-page-wrapper {
+    visibility: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    background: white !important;
+  }
+  .print-page-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+  .print-page-card {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
   .print-area {
     position: relative !important;
     left: auto !important;
     top: auto !important;
-    width: 100% !important;
+    width: 186mm !important;  /* A4 width 210mm − 24mm margins */
     max-width: none !important;
     margin: 0 auto !important;
+    padding: 0 !important;    /* Remove sm:p-10 padding from component */
     box-shadow: none !important;
     border: none !important;
     background: white !important;
-    break-inside: auto;
     box-sizing: border-box !important;
   }
+  /* Individual sections must not split mid-block, but the overall
+     payslip flows naturally so content fits on one A4 page. */
   .print-area p,
   .print-area h2,
   .print-area dl,
+  .print-area dl > div,
   .print-area table,
+  .print-area tr,
   .print-area footer,
-  .print-area section,
   .print-area .take-home {
     break-inside: avoid;
     margin-bottom: inherit !important;
   }
   .print-area table {
-    width: 100% !important;
-    border-collapse: collapse !important;
     break-inside: auto;
-  }
-  .print-area tr {
-    break-inside: avoid;
   }
 }

@@ -4,8 +4,11 @@ import { projectState } from '../../shared/domain/access';
 import { runCommand } from '../../shared/domain/commands';
 import { provisionEmployeeAccount, resetEmployeePassword, setEmployeeAccountActive } from '../accounts';
 import { requireAuth, requirePasswordChanged, requireRole } from '../auth';
-import { UserModel } from '../models';
+import { UserModel, PayslipModel } from '../models';
 import { ensureLoaded, loadState, persistDiff, setCachedState } from '../store';
+import { config } from '../config';
+import { getPdfBrowser, disposePdfBrowser } from '../pdfBrowser';
+import { monthLabel } from '../../shared/domain/payroll';
 
 export const apiRouter = Router();
 
@@ -54,6 +57,103 @@ apiRouter.get('/accounts', requireAuth, requirePasswordChanged, requireRole('man
       workFromHome: !!a.workFromHome
     }))
   });
+});
+
+/**
+ * Generate and download a payslip PDF using Playwright Chromium.
+ *
+ * Renders the actual payslip preview page (PayslipPrintPage) through a real
+ * browser engine so the PDF output is pixel-identical to what the user sees
+ * on screen. Always produces exactly one A4 page.
+ *
+ * Performance:
+ *   - Reuses a single warm Chromium instance across requests (2-4s per PDF).
+ *   - Waits only for .print-area content (domcontentloaded), not networkidle.
+ *   - Each request gets its own incognito context for isolation.
+ */
+apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, async (req, res) => {
+  const payslipId = String(req.params.id);
+
+  const payslip = await PayslipModel.findById(payslipId).lean();
+  if (!payslip) {
+    res.status(404).json({ error: 'Payslip not found.' });
+    return;
+  }
+
+  // Access control: management can see all payslips; employees only their own.
+  if (req.user!.role !== 'management' && payslip.employeeId !== req.user!.employeeId) {
+    res.status(403).json({ error: 'Access denied.' });
+    return;
+  }
+
+  // Build the client-side print page URL. Playwright navigates here so the
+  // React component (PayslipDocument) renders exactly as it does in the preview.
+  // The route is portal-scoped: /management/payslip/print/:id or
+  // /employee/payslip/print/:id depending on the user's role.
+  const clientOrigin = config.clientOrigins[0] ?? (req.headers.origin ?? `http://${req.headers.host}`);
+  const portalPrefix = req.user!.role === 'management' ? '/management' : '/employee';
+  const printUrl = `${clientOrigin.replace(/\/$/, '')}${portalPrefix}/payslip/print/${payslipId}`;
+
+  // Extract the session cookie so Playwright's browser context is authenticated.
+  const sessionCookie = req.cookies?.[config.cookieName];
+
+  let browser;
+  let context;
+  try {
+    browser = await getPdfBrowser();
+    context = await browser.newContext();
+
+    if (sessionCookie) {
+      const clientUrl = new URL(clientOrigin);
+      await context.addCookies([{
+        name: config.cookieName,
+        value: sessionCookie,
+        domain: clientUrl.hostname,
+        path: '/',
+      }]);
+    }
+
+    const page = await context.newPage();
+    // Set viewport to A4 width at 96 DPI (794×1123px) so Tailwind `sm:` breakpoints
+    // apply correctly and the payslip renders at its intended width.
+    await page.setViewportSize({ width: 794, height: 1123 });
+    // Use domcontentloaded instead of networkidle: we only need the React
+    // component to render, not every background network request.
+    await page.goto(printUrl, { waitUntil: 'domcontentloaded' });
+
+    // Wait for the payslip document to render (not the loading spinner).
+    await page.waitForSelector('.print-area', { timeout: 10000 });
+
+    // Wait for all fonts to load so Chromium doesn't substitute fallback fonts.
+    // This ensures the PDF uses the exact same Inter font weights as the preview.
+    await page.evaluateHandle('document.fonts.ready');
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      landscape: false,
+      margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
+      printBackground: true,
+    });
+
+    await context.close();
+    context = null;
+
+    const label = monthLabel(payslip.month);
+    const [monthName, year] = label.split(' ');
+    const safeName = String(payslip.data.employee.name).replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    const safeMonth = (monthName ?? '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    const safeYear = (year ?? '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    const fileName = `${safeName}_${safeMonth}_${safeYear}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', String(pdfBuffer.length));
+    res.send(pdfBuffer);
+  } catch (err) {
+    if (context) await context.close().catch(() => {});
+    console.error('[payslip/download] Playwright PDF generation failed:', err);
+    res.status(500).json({ error: 'Failed to generate payslip PDF.' });
+  }
 });
 
 /**

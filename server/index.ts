@@ -15,6 +15,7 @@ import { bugTrackerRouter } from './routes/bugTracker';
 import { io } from './socket';
 import { startAutoSubmitCron } from './cron/autoSubmitTimesheets';
 import { startAutoPauseCron } from './cron/autoPauseBreaks';
+import { disposePdfBrowser } from './pdfBrowser';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(dir, '../dist/client');
@@ -134,6 +135,7 @@ async function start(): Promise<void> {
 
 async function shutdown(signal: string): Promise<void> {
   console.log(`[server] ${signal} received, shutting down`);
+  await disposePdfBrowser();
   await disconnectDatabase();
   process.exit(0);
 }

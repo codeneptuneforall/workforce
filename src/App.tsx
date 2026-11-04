@@ -30,6 +30,7 @@ import { LiveTrackerPage } from './pages/management/LiveTrackerPage';
 import { ManagementDashboard } from './pages/management/ManagementDashboard';
 import { PayrollPage } from './pages/management/PayrollPage';
 import { PayslipDetailPage } from './pages/management/PayslipDetailPage';
+import { PayslipPrintPage } from './pages/management/PayslipPrintPage';
 import { PayslipsPage } from './pages/management/PayslipsPage';
 import { ProjectDetailPage } from './pages/management/ProjectDetailPage';
 import { ProjectsPage } from './pages/management/ProjectsPage';
@@ -98,6 +99,7 @@ export function App() {
                   <Route path="payroll/salary-structures" element={<SalaryStructuresPage />} />
                   <Route path="payslips" element={<PayslipsPage />} />
                   <Route path="payslips/:id" element={<PayslipDetailPage />} />
+                  <Route path="payslip/print/:id" element={<PayslipPrintPage />} />
                 </Route>
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
@@ -135,6 +137,7 @@ export function App() {
                 <Route path="leaves/history" element={<MyLeavesPage />} />
                 <Route path="leaves/apply" element={<ApplyLeavePage />} />
                 <Route path="payslips" element={<MyPayslipsPage />} />
+                <Route path="payslip/print/:id" element={<PayslipPrintPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="profile" element={<MyProfilePage />} />
 {BUG_TRACKER_ENABLED && (

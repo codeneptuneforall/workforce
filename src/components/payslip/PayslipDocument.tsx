@@ -1,3 +1,4 @@
+import { forwardRef, useRef } from 'react';
 import type { PayslipData } from '@shared/types';
 import { fmtINR, rupeesInWords } from '@shared/domain/currency';
 import { monthLabel } from '@shared/domain/payroll';
@@ -11,7 +12,12 @@ interface Props {
   watermark?: string;
 }
 
-export function PayslipDocument({ data, version, watermark }: Props) {
+export const PayslipDocument = forwardRef<HTMLElement, Props>(({
+  data,
+  version,
+  watermark,
+  ref,
+}: Props & {ref?: React.Ref<HTMLElement>}) => {
   const deductions = data.deductions.filter((d) => d.amount > 0 || !['Working-Hour Shortfall Deduction', 'Other Deductions'].includes(d.label));
   const rows = Math.max(data.earnings.length, deductions.length);
   const details: [string, string][] = [
@@ -30,7 +36,7 @@ export function PayslipDocument({ data, version, watermark }: Props) {
 
 
   return (
-    <article className="print-area relative w-full bg-white p-6 text-[12px] leading-relaxed text-ink sm:p-10" aria-label={`Payslip ${monthLabel(data.month)}`}>
+    <article ref={ref} className="print-area relative w-full bg-white p-6 text-[12px] leading-relaxed text-ink sm:p-10" aria-label={`Payslip ${monthLabel(data.month)}`} style={{ width: '186mm', margin: '0 auto', padding: 0, boxSizing: 'border-box' }}>
       {watermark &&
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
           <span className="-rotate-12 text-6xl font-bold uppercase tracking-widest text-ink/5">{watermark}</span>
@@ -109,8 +115,9 @@ export function PayslipDocument({ data, version, watermark }: Props) {
 
       <footer className="mt-8 flex flex-col gap-1 border-t border-line pt-3 text-[10px] text-ink-muted sm:flex-row sm:justify-between">
         <p>{data.confidentialityNote}</p>
-        {version !== undefined && <p className="tnum">Version {version}</p>}
       </footer>
-    </article>);
+    </article>
+  );
+});
 
-}
+PayslipDocument.displayName = 'PayslipDocument';
