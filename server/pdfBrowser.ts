@@ -36,7 +36,7 @@ async function ensureBrowser(): Promise<void> {
     try {
       const executablePath = getChromiumExecutablePath();
       const launchOptions: Record<string, unknown> = {
-        headless: 'new',
+        headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
