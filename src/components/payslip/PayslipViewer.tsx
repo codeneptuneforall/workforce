@@ -7,6 +7,13 @@ import { Modal } from '../ui/Overlay';
 import { PayslipDocument } from './PayslipDocument';
 
 /**
+ * Build the API base URL from VITE_API_BASE_URL (same as src/api/client.ts).
+ * In production this points to the backend; in development it's empty so
+ * relative /api paths work against the Vite dev server proxy.
+ */
+const BASE = (import.meta.env?.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+/**
  * Download a payslip PDF generated server-side by Playwright Chromium.
  *
  * Calls the API endpoint which renders the actual payslip preview page through
@@ -14,7 +21,7 @@ import { PayslipDocument } from './PayslipDocument';
  */
 export async function downloadPayslip(payslipId: string, fileName: string) {
   try {
-    const res = await fetch(`/api/payslip/download/${payslipId}`, {
+    const res = await fetch(`${BASE}/api/payslip/download/${payslipId}`, {
       method: 'GET',
       credentials: 'include',
     });
