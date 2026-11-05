@@ -19,6 +19,12 @@ const BASE = (import.meta.env?.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
  * Calls the API endpoint which renders the actual payslip preview page through
  * a real browser engine and returns a single-page A4 PDF.
  */
+/**
+ * Download a payslip PDF generated server-side by Playwright Chromium.
+ *
+ * Calls the API endpoint which renders the actual payslip preview page through
+ * a real browser engine and returns a single-page A4 PDF.
+ */
 export async function downloadPayslip(payslipId: string, fileName: string) {
   try {
     const res = await fetch(`${BASE}/api/payslip/download/${payslipId}`, {
@@ -27,8 +33,22 @@ export async function downloadPayslip(payslipId: string, fileName: string) {
     });
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || `Failed to download PDF (${res.status})`);
+      let errorMsg = `Failed to download PDF (${res.status})`;
+      const contentType = res.headers.get('content-type') ?? '';
+      if (contentType.includes('application/json')) {
+        const errorData = await res.json().catch(() => ({}));
+        errorMsg = errorData.error || errorMsg;
+      } else {
+        // Non-JSON response (e.g. HTML fallback page) - surface status + first bytes
+        const text = await res.text().catch(() => '');
+        errorMsg = `Server returned ${res.status}. First 200 chars: ${text.slice(0, 200)}`;
+      }
+      throw new Error(errorMsg);
+    }
+
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/pdf')) {
+      throw new Error(`Expected PDF response but got ${contentType}. The request may have reached the frontend instead of the backend API.`);
     }
 
     const blob = await res.blob();

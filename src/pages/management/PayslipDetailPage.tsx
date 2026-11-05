@@ -35,7 +35,11 @@ export function PayslipDetailPage() {
       actions={<><Button variant="secondary" icon={DownloadIcon} onClick={async () => {
         if (!p) return;
         const fileName = buildPayslipFileName(p.data.employee.name, p.month);
-        await downloadPayslip(p.id, fileName);
+        try {
+          await downloadPayslip(p.id, fileName);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to download payslip.');
+        }
       }}>Download PDF</Button></>} />
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <div className="overflow-x-auto rounded-xl border border-line bg-canvas p-3 sm:p-6">
