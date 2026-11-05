@@ -174,8 +174,10 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     res.send(pdfBuffer);
   } catch (err) {
     if (context) await context.close().catch(() => {});
-    console.error('[payslip/download] Playwright PDF generation failed:', err);
-    res.status(500).json({ error: 'Failed to generate payslip PDF.' });
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[payslip/download] Playwright PDF generation failed:', errMsg);
+    // Include the underlying error message so production debugging is possible.
+    res.status(500).json({ error: `Failed to generate payslip PDF: ${errMsg}` });
   }
 });
 

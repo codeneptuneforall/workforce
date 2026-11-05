@@ -11,8 +11,20 @@
  *   - Closed on server shutdown via dispose().
  */
 import { chromium, type Browser } from 'playwright';
+import { config } from './config';
+
 let browser: Browser | null = null;
 let launchPromise: Promise<void> | null = null;
+
+/**
+ * Resolve the Chromium executable path. In production, the Playwright
+ * Chromium binary is installed at a known location under node_modules.
+ * Allow overriding via CHROMIUM_EXECUTABLE_PATH for hosting platforms
+ * that install Chromium elsewhere (e.g. system chromium package).
+ */
+function getChromiumExecutablePath(): string | undefined {
+  return process.env.CHROMIUM_EXECUTABLE_PATH;
+}
 
 async function ensureBrowser(): Promise<void> {
   if (browser) return;
@@ -22,9 +34,27 @@ async function ensureBrowser(): Promise<void> {
   }
   launchPromise = (async () => {
     try {
-      browser = await chromium.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
+      const executablePath = getChromiumExecutablePath();
+      const launchOptions: Record<string, unknown> = {
+        headless: 'new',
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--single-process',
+          '--no-zygote',
+          '--disable-features=VizDisplayCompositor',
+        ],
+      };
+      if (executablePath) {
+        launchOptions.executablePath = executablePath;
+      }
+      browser = await chromium.launch(launchOptions);
+      console.log('[pdfBrowser] Chromium launched successfully');
+    } catch (err) {
+      console.error('[pdfBrowser] Failed to launch Chromium:', err);
+      throw err;
     } finally {
       launchPromise = null;
     }
