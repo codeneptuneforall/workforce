@@ -87,7 +87,7 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
   }
 
   // Build the client-side print page URL. Playwright navigates here so the
-  // React component (PayslipDocument) renders exactly as it does in the preview.
+  // React component (PayslipPrintPage) renders exactly as it does in the preview.
   // The route is portal-scoped: /management/payslip/print/:id or
   // /employee/payslip/print/:id depending on the user's role.
   const clientOrigin = config.clientOrigins[0] ?? (req.headers.origin ?? `http://${req.headers.host}`);
@@ -99,6 +99,7 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
 
   let browser;
   let context;
+  let page;
   try {
     browser = await getPdfBrowser();
     context = await browser.newContext();
@@ -113,7 +114,7 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
       }]);
     }
 
-    const page = await context.newPage();
+    page = await context.newPage();
     // Set viewport to A4 width at 96 DPI (794×1123px) so Tailwind `sm:` breakpoints
     // apply correctly and the payslip renders at its intended width.
     await page.setViewportSize({ width: 794, height: 1123 });
@@ -126,7 +127,7 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     await page.waitForSelector('.print-area', { timeout: 30000 });
 
     // Wait for all fonts to load so Chromium doesn't substitute fallback fonts.
-    // This ensures the PDF uses the exact same Inter font weights as the preview.
+    // This ensures the PDF uses the exact same font weights as the preview.
     await page.evaluateHandle('document.fonts.ready');
 
     // Additional wait to ensure all React rendering and CSS is complete
@@ -172,6 +173,12 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     res.setHeader('Content-Length', String(pdfBuffer.length));
     res.send(pdfBuffer);
   } catch (err) {
+    // Always close page and context to prevent resource leaks
+    try {
+      if (page) await page.close().catch(() => {});
+    } catch {
+      // ignore
+    }
     if (context) await context.close().catch(() => {});
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[payslip/download] Playwright PDF generation failed:', errMsg);

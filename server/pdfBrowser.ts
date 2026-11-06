@@ -8,7 +8,7 @@
  * Lifecycle:
  *   - Launched lazily on first request.
  *   - Kept warm for subsequent requests (~2-4s per PDF).
- *   - Auto-restarted if the browser crashes.
+ *   - Auto-restarted if the browser crashes or disconnects.
  *   - Closed on server shutdown via dispose().
  */
 import { chromium, type Browser } from 'playwright';
@@ -54,12 +54,23 @@ async function ensureBrowser(): Promise<void> {
           '--disable-gpu',
           '--disable-dev-shm-usage',
           '--disable-features=VizDisplayCompositor',
+          // Single-process mode is required in some container environments
+          // where the zygote process cannot fork.
+          '--single-process',
+          '--no-zygote',
         ],
       };
       if (executablePath) {
         launchOptions.executablePath = executablePath;
       }
       browser = await chromium.launch(launchOptions);
+
+      // Listen for unexpected browser crashes.
+      browser.on('disconnected', () => {
+        console.log('[pdfBrowser] Chromium browser disconnected');
+        browser = null;
+      });
+
       console.log('[pdfBrowser] Chromium launched successfully');
     } catch (err) {
       console.error('[pdfBrowser] Failed to launch Chromium:', err);
