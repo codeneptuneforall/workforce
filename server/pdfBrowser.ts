@@ -86,18 +86,12 @@ export async function getPdfBrowser(): Promise<Browser> {
   return browser;
 }
 
-/**
- * Create a new browser context with automatic recovery.
- * If the browser has crashed, createContext will throw. We catch that,
- * invalidate the browser, launch a fresh one, and retry once.
- */
 export async function createBrowserContext(): Promise<import('playwright').BrowserContext> {
   try {
     const browser = await getPdfBrowser();
     return await browser.newContext();
   } catch (err) {
     // Browser may have died between getPdfBrowser() and newContext().
-    // Invalidate and retry once.
     console.error('[pdfBrowser] newContext failed, invalidating browser:', err);
     try { await browser?.close(); } catch {}
     browser = null;
