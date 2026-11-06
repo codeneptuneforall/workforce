@@ -5,15 +5,6 @@ import type { Payslip } from '@shared/types';
 import { PayslipDocument } from '../../components/payslip/PayslipDocument';
 import { monthLabel } from '@shared/domain/payroll';
 
-/**
- * PayslipPrintPage — a full-page, print-optimized view of a single payslip.
- *
- * Reuses the exact same PayslipDocument component and CSS as the preview.
- * No AppShell chrome — just the payslip document positioned at the top margin
- * of the page, using the full available printable area.
- * Intended to be rendered by Playwright on the server for PDF generation,
- * but also works standalone in a browser for direct printing.
- */
 export function PayslipPrintPage() {
   const { id } = useParams<{ id: string }>();
   const [payslip, setPayslip] = useState<Payslip | null>(null);

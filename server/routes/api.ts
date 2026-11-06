@@ -119,12 +119,11 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     await page.setViewportSize({ width: 794, height: 1123 });
     // Emulate print media so @media print CSS is applied
     await page.emulateMedia({ media: 'print' });
-    // Use domcontentloaded instead of networkidle: we only need the React
-    // component to render, not every background network request.
-    await page.goto(printUrl, { waitUntil: 'domcontentloaded' });
+    // Wait for the page to load and all network requests to complete
+    await page.goto(printUrl, { waitUntil: 'networkidle', timeout: 30000 });
 
     // Wait for the payslip document to render (not the loading spinner).
-    await page.waitForSelector('.print-area', { timeout: 10000 });
+    await page.waitForSelector('.print-area', { timeout: 30000 });
 
     // Wait for all fonts to load so Chromium doesn't substitute fallback fonts.
     // This ensures the PDF uses the exact same Inter font weights as the preview.
