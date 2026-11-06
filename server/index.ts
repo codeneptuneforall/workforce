@@ -63,7 +63,13 @@ const loginLimiter = rateLimit({
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'workforce-api', time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: 'workforce-api',
+    // Lets you confirm which commit a deployment is actually running.
+    commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? process.env.GIT_COMMIT?.slice(0, 7) ?? 'unknown',
+    time: new Date().toISOString()
+  });
 });
 
 app.use('/api/auth/login', loginLimiter);
@@ -99,6 +105,17 @@ if (config.serveClient) {
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
     // The shell must never be cached, otherwise a redeploy keeps serving the old bundle.
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(clientDir, 'index.html'), (err) => {
+      if (err) next();
+    });
+  });
+} else {
+  // The SPA may be hosted separately (SERVE_CLIENT=false), but the PDF renderer
+  // still needs a same-origin copy of it. Serve only the bundled assets and the
+  // standalone payslip print route, not the whole application.
+  app.use('/assets', express.static(path.join(clientDir, 'assets'), { maxAge: '1h' }));
+  app.get('/payslip/print/:id', (_req, res, next) => {
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(clientDir, 'index.html'), (err) => {
       if (err) next();
