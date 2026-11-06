@@ -90,18 +90,19 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
   // Standalone print route. It sits outside the role guards and the app shell, so
   // the renderer never depends on an authenticated SPA session or a redirect.
   //
-  // Candidate origins: the configured client origin first, then the API's own
-  // origin (this server also serves the built client). A loopback *configured*
-  // origin is dropped in production because a headless browser inside the
-  // container cannot reach the developer machine. The self origin is always
-  // kept: it is reachable from the container by definition.
+  // Candidate origins: the API's own origin first (this server also serves the
+  // built client, so that copy always matches the running server build), then
+  // the configured client origin as a fallback. A loopback *configured* origin
+  // is dropped in production because a headless browser inside the container
+  // cannot reach the developer machine. The self origin is always kept: it is
+  // reachable from the container by definition.
   const selfOrigin = `${req.protocol}://${req.get('host') ?? req.headers.host ?? `localhost:${config.port}`}`;
   const isLoopback = (origin: string) => /\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(origin);
   const configuredOrigins = config.clientOrigins
     .filter(Boolean)
     .map((origin) => origin.replace(/\/$/, ''))
     .filter((origin) => !(config.isProduction && isLoopback(origin)));
-  const printOrigins = [...new Set([...configuredOrigins, selfOrigin.replace(/\/$/, '')])];
+  const printOrigins = [...new Set([selfOrigin.replace(/\/$/, ''), ...configuredOrigins])];
 
   // Extract the session cookie so page requests still carry the caller's session.
   const sessionCookie = req.cookies?.[config.cookieName];
