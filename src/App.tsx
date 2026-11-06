@@ -73,6 +73,15 @@ export function App() {
             <Route path="/session-expired" element={<SessionExpiredPage />} />
             <Route path="/access-denied" element={<AccessDeniedPage />} />
 
+            {/*
+              Standalone payslip print route used by the server-side PDF renderer.
+              It lives outside the role guards/app shell so a headless browser can
+              render the payslip without depending on an authenticated SPA session.
+              Authorization is still enforced by the API endpoint that starts the
+              render; data is injected into the page by that endpoint.
+            */}
+            <Route path="/payslip/print/:id" element={<PayslipPrintPage />} />
+
             <Route element={<RequireRole role="management" />}>
               <Route path="/management" element={<AppShell portal="management" />}>
                 <Route index element={<Navigate to="dashboard" replace />} />

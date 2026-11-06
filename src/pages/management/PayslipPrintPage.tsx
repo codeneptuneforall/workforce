@@ -5,6 +5,17 @@ import type { Payslip } from '@shared/types';
 import { PayslipDocument } from '../../components/payslip/PayslipDocument';
 import { monthLabel } from '@shared/domain/payroll';
 
+declare global {
+  interface Window {
+    /**
+     * Payslip payload injected by the server before the page loads.
+     * Used by the PDF renderer so it does not need to make an authenticated
+     * API call (and therefore does not depend on cookie propagation).
+     */
+    __WF_PAYSLIP__?: Payslip;
+  }
+}
+
 export function PayslipPrintPage() {
   const { id } = useParams<{ id: string }>();
   const [payslip, setPayslip] = useState<Payslip | null>(null);
@@ -12,6 +23,14 @@ export function PayslipPrintPage() {
 
   useEffect(() => {
     if (!id) return;
+
+    // Fast path: the PDF renderer injects the already-authorised payslip data.
+    const injected = typeof window !== 'undefined' ? window.__WF_PAYSLIP__ : undefined;
+    if (injected && injected.id === id) {
+      setPayslip(injected);
+      return;
+    }
+
     (async () => {
       try {
         const res = await api.state();

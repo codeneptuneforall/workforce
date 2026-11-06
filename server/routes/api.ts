@@ -7,7 +7,7 @@ import { requireAuth, requirePasswordChanged, requireRole } from '../auth';
 import { UserModel, PayslipModel } from '../models';
 import { ensureLoaded, loadState, persistDiff, setCachedState } from '../store';
 import { config } from '../config';
-import { getPdfBrowser, createBrowserContext, disposePdfBrowser } from '../pdfBrowser';
+import { createBrowserContext } from '../pdfBrowser';
 import { monthLabel } from '../../shared/domain/payroll';
 
 export const apiRouter = Router();
@@ -86,15 +86,24 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     return;
   }
 
-  // Build the client-side print page URL. Playwright navigates here so the
-  // React component (PayslipPrintPage) renders exactly as it does in the preview.
-  // The route is portal-scoped: /management/payslip/print/:id or
-  // /employee/payslip/print/:id depending on the user's role.
-  const clientOrigin = config.clientOrigins[0] ?? (req.headers.origin ?? `http://${req.headers.host}`);
-  const portalPrefix = req.user!.role === 'management' ? '/management' : '/employee';
-  const printUrl = `${clientOrigin.replace(/\/$/, '')}${portalPrefix}/payslip/print/${payslipId}`;
+  // Standalone print route. It sits outside the role guards and the app shell, so
+  // the renderer never depends on an authenticated SPA session or a redirect.
+  //
+  // Candidate origins: the configured client origin first, then the API's own
+  // origin (this server also serves the built client). A loopback origin is
+  // dropped in production because a headless browser inside the container cannot
+  // reach the developer machine.
+  const selfOrigin = `${req.protocol}://${req.get('host') ?? req.headers.host ?? `localhost:${config.port}`}`;
+  const isLoopback = (origin: string) => /\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(origin);
+  const printOrigins = [...new Set(
+    [...config.clientOrigins, selfOrigin]
+      .filter(Boolean)
+      .map((origin) => origin.replace(/\/$/, ''))
+      .filter((origin) => !(config.isProduction && isLoopback(origin)))
+  )];
+  const printUrl = `${printOrigins[0]}/payslip/print/${payslipId}`;
 
-  // Extract the session cookie so Playwright's browser context is authenticated.
+  // Extract the session cookie so page requests still carry the caller's session.
   const sessionCookie = req.cookies?.[config.cookieName];
 
   let context;
@@ -103,33 +112,86 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
     context = await createBrowserContext();
 
     if (sessionCookie) {
-      const clientUrl = new URL(clientOrigin);
-      await context.addCookies([{
+      // Mirror the exact attributes the API uses when it issues this cookie.
+      // Playwright defaults to SameSite=Lax + Secure=false, which browsers drop
+      // on cross-site requests and which does not match the real session cookie.
+      await context.addCookies(printOrigins.map((origin) => ({
         name: config.cookieName,
         value: sessionCookie,
-        domain: clientUrl.hostname,
-        path: '/',
-      }]);
+        url: origin,
+        httpOnly: true,
+        secure: config.isProduction,
+        sameSite: (config.isProduction ? 'None' : 'Lax') as 'None' | 'Lax'
+      })));
     }
 
-    page = await context.newPage();
-    // Set viewport to A4 width at 96 DPI (794×1123px) so Tailwind `sm:` breakpoints
-    // apply correctly and the payslip renders at its intended width.
-    await page.setViewportSize({ width: 794, height: 1123 });
-    // Emulate print media so @media print CSS is applied
-    await page.emulateMedia({ media: 'print' });
-    // Wait for the page to load and all network requests to complete
-    await page.goto(printUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    // Hand the already-authorised payslip payload to every page in this context
+    // before the app boots. The print route renders it directly, so PDF
+    // generation no longer depends on cookie propagation.
+    const payload = JSON.parse(JSON.stringify({
+      id: payslipId,
+      employeeId: payslip.employeeId,
+      month: payslip.month,
+      version: payslip.version,
+      status: payslip.status,
+      revisionReason: payslip.revisionReason,
+      data: payslip.data
+    }));
+    await context.addInitScript((data) => {
+      (window as unknown as { __WF_PAYSLIP__?: unknown }).__WF_PAYSLIP__ = data;
+    }, payload);
+
+    // Try each candidate origin; keep the first one that loads. A failed
+    // navigation leaves the page on chrome-error://, so each attempt gets a
+    // fresh page instead of reusing a broken one.
+    let navError: unknown = null;
+    for (const origin of printOrigins) {
+      const candidate = await context.newPage();
+      // A4 width at 96 DPI (794×1123px) so Tailwind `sm:` breakpoints apply.
+      await candidate.setViewportSize({ width: 794, height: 1123 });
+      // Emulate print media so @media print CSS is applied.
+      await candidate.emulateMedia({ media: 'print' });
+      try {
+        await candidate.goto(`${origin}/payslip/print/${payslipId}`, {
+          waitUntil: 'domcontentloaded',
+          timeout: 30000
+        });
+        page = candidate;
+        navError = null;
+        break;
+      } catch (err) {
+        navError = err;
+        console.warn('[payslip/download] print origin unreachable:', new URL(origin).host);
+        await candidate.close().catch(() => {});
+      }
+    }
+    if (navError || !page) throw navError ?? new Error('No reachable print origin');
 
     // Wait for the payslip document to render (not the loading spinner).
-    await page.waitForSelector('.print-area', { timeout: 30000 });
+    try {
+      await page.waitForSelector('.print-area', { timeout: 30000 });
+    } catch (selectorError) {
+      // Diagnostic context without employee, salary or session data.
+      const diag = await page.evaluate(() => ({
+        title: document.title,
+        hasInjectedPayload: Boolean((window as unknown as { __WF_PAYSLIP__?: unknown }).__WF_PAYSLIP__),
+        bodyTextLength: document.body?.innerText?.length ?? 0,
+        path: location.pathname
+      })).catch(() => null);
+      console.error('[payslip/download] .print-area not rendered', JSON.stringify({
+        printHost: new URL(printUrl).host,
+        finalHost: (() => { try { return new URL(page.url()).host; } catch { return 'unknown'; } })(),
+        ...diag
+      }));
+      throw selectorError;
+    }
 
     // Wait for all fonts to load so Chromium doesn't substitute fallback fonts.
     // This ensures the PDF uses the exact same font weights as the preview.
-    await page.evaluateHandle('document.fonts.ready');
+    await page.evaluate(() => document.fonts.ready.then(() => true));
 
     // Additional wait to ensure all React rendering and CSS is complete
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(300);
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -154,6 +216,10 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
       throw new Error(`Generated PDF is suspiciously small (${pdfBuffer.length} bytes)`);
     }
 
+    if (page) {
+      await page.close().catch(() => {});
+      page = null;
+    }
     await context.close();
     context = null;
 
