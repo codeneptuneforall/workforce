@@ -7,7 +7,7 @@ import { requireAuth, requirePasswordChanged, requireRole } from '../auth';
 import { UserModel, PayslipModel } from '../models';
 import { ensureLoaded, loadState, persistDiff, setCachedState } from '../store';
 import { config } from '../config';
-import { getPdfBrowser, disposePdfBrowser } from '../pdfBrowser';
+import { getPdfBrowser, createBrowserContext, disposePdfBrowser } from '../pdfBrowser';
 import { monthLabel } from '../../shared/domain/payroll';
 
 export const apiRouter = Router();
@@ -97,12 +97,10 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
   // Extract the session cookie so Playwright's browser context is authenticated.
   const sessionCookie = req.cookies?.[config.cookieName];
 
-  let browser;
   let context;
   let page;
   try {
-    browser = await getPdfBrowser();
-    context = await browser.newContext();
+    context = await createBrowserContext();
 
     if (sessionCookie) {
       const clientUrl = new URL(clientOrigin);

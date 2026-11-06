@@ -54,10 +54,6 @@ async function ensureBrowser(): Promise<void> {
           '--disable-gpu',
           '--disable-dev-shm-usage',
           '--disable-features=VizDisplayCompositor',
-          // Single-process mode is required in some container environments
-          // where the zygote process cannot fork.
-          '--single-process',
-          '--no-zygote',
         ],
       };
       if (executablePath) {
@@ -88,6 +84,27 @@ export async function getPdfBrowser(): Promise<Browser> {
     throw new Error('Playwright browser failed to launch');
   }
   return browser;
+}
+
+/**
+ * Create a new browser context with automatic recovery.
+ * If the browser has crashed, createContext will throw. We catch that,
+ * invalidate the browser, launch a fresh one, and retry once.
+ */
+export async function createBrowserContext(): Promise<import('playwright').BrowserContext> {
+  try {
+    const browser = await getPdfBrowser();
+    return await browser.newContext();
+  } catch (err) {
+    // Browser may have died between getPdfBrowser() and newContext().
+    // Invalidate and retry once.
+    console.error('[pdfBrowser] newContext failed, invalidating browser:', err);
+    try { await browser?.close(); } catch {}
+    browser = null;
+    await ensureBrowser();
+    const browser2 = await getPdfBrowser();
+    return await browser2.newContext();
+  }
 }
 
 export async function disposePdfBrowser(): Promise<void> {
