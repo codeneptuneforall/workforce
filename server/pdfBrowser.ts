@@ -3,11 +3,12 @@
  *
  * Launches Chromium once and reuses the same browser instance across
  * payroll-pdf download requests. Each request gets its own isolated
- * incognito context so employee data never leaks between downloads.
+ * incognito context for isolation.
  *
  * Lifecycle:
  *   - Launched lazily on first request.
- *   - Kept warm for subsequent requests (~2-4s per PDF instead of ~15s).
+ *   - Kept warm for subsequent requests (~2-4s per PDF).
+ *   - Auto-restarted if the browser crashes.
  *   - Closed on server shutdown via dispose().
  */
 import { chromium, type Browser } from 'playwright';
@@ -27,7 +28,17 @@ function getChromiumExecutablePath(): string | undefined {
 }
 
 async function ensureBrowser(): Promise<void> {
-  if (browser) return;
+  if (browser) {
+    // Verify the browser is still alive before reusing it.
+    try {
+      await browser.version();
+      return;
+    } catch {
+      // Browser is dead, close and recreate.
+      try { await browser.close(); } catch {}
+      browser = null;
+    }
+  }
   if (launchPromise) {
     await launchPromise;
     return;
@@ -42,8 +53,6 @@ async function ensureBrowser(): Promise<void> {
           '--disable-setuid-sandbox',
           '--disable-gpu',
           '--disable-dev-shm-usage',
-          '--single-process',
-          '--no-zygote',
           '--disable-features=VizDisplayCompositor',
         ],
       };
