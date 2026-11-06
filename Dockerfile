@@ -22,6 +22,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
+# Install Chromium browser for PDF generation
+RUN npx playwright install chromium
+
 # Copy source code
 COPY . .
 
