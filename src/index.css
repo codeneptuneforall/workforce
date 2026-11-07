@@ -33,7 +33,10 @@ body {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 0mm;
+    /* Single source of truth for PDF page margins (page.pdf() passes no margin,
+       so nothing is applied twice). 20mm clears the top edge above the header;
+       12mm sides keep the 186mm payslip body centred on a 210mm sheet. */
+    margin: 20mm 12mm 12mm 12mm;
   }
   body {
     margin: 0 !important;

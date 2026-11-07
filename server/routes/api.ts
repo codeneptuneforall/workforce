@@ -165,10 +165,13 @@ apiRouter.get('/payslip/download/:id', requireAuth, requirePasswordChanged, asyn
           // Additional wait to ensure all React rendering and CSS is complete.
           await page.waitForTimeout(300);
 
+          // Page margins live in the print stylesheet's @page rule (20mm top /
+          // 12mm elsewhere). Passing margins here as well is ignored while
+          // preferCSSPageSize is true and risks double-applying them later, so
+          // the CSS rule is the single source of truth.
           return await page.pdf({
             format: 'A4',
             landscape: false,
-            margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
             printBackground: true,
             preferCSSPageSize: true,
           });
