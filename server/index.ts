@@ -16,6 +16,7 @@ import { io } from './socket';
 import { startAutoSubmitCron } from './cron/autoSubmitTimesheets';
 import { startAutoPauseCron } from './cron/autoPauseBreaks';
 import { disposePdfBrowser } from './pdfBrowser';
+import { migrateWfhHistory } from './migrate-wfh-history';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(dir, '../dist/client');
@@ -137,6 +138,11 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 async function start(): Promise<void> {
   await connectDatabase();
+  // Recover any pre-existing WFH declarations from User documents into the new
+  // WfhHistory collection (idempotent, historical_recovery source).
+  await migrateWfhHistory().catch((err) => {
+    console.error('[wfh-migration] Failed (non-fatal):', err);
+  });
   // Auto-submit timesheets for ended weeks (runs immediately on startup, then
   // every Saturday at 00:00).
   startAutoSubmitCron();
