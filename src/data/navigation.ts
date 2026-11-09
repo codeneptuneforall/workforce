@@ -63,7 +63,8 @@ export const managementNav: NavGroup[] = [{
   { label: 'Employees', to: '/management/employees', icon: UsersIcon },
   { label: 'Teams', to: '/management/teams', icon: UsersRoundIcon },
   { label: 'Projects', to: '/management/projects', icon: FolderKanbanIcon },
-  { label: 'Tasks', to: '/management/tasks', icon: ListChecksIcon }]
+  { label: 'Tasks', to: '/management/tasks', icon: ListChecksIcon },
+  { label: 'WFH History', to: '/management/wfh-history', icon: CalendarDaysIcon }]
 
 },
 {

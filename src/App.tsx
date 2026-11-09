@@ -28,6 +28,7 @@ import { LeaveRequestsPage } from './pages/management/LeaveRequestsPage';
 import { LeaveSettingsPage } from './pages/management/LeaveSettingsPage';
 import { LiveTrackerPage } from './pages/management/LiveTrackerPage';
 import { ManagementDashboard } from './pages/management/ManagementDashboard';
+import { WfhHistoryPage } from './pages/management/WfhHistoryPage';
 import { PayrollPage } from './pages/management/PayrollPage';
 import { PayslipDetailPage } from './pages/management/PayslipDetailPage';
 import { PayslipPrintPage } from './pages/management/PayslipPrintPage';
@@ -114,6 +115,7 @@ export function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
                 <Route path="late-logins" element={<LateLoginsPage />} />
+                <Route path="wfh-history" element={<WfhHistoryPage />} />
 {BUG_TRACKER_ENABLED && (
                 <Route path="bug-tracker" element={<BugTrackerProvider><Outlet /></BugTrackerProvider>}>
                   <Route index element={<Overview />} />

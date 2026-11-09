@@ -5,11 +5,12 @@ import { projectState } from '../../shared/domain/access';
 import { runCommand } from '../../shared/domain/commands';
 import { provisionEmployeeAccount, resetEmployeePassword, setEmployeeAccountActive } from '../accounts';
 import { requireAuth, requirePasswordChanged, requireRole } from '../auth';
-import { UserModel, PayslipModel } from '../models';
-import { ensureLoaded, loadState, persistDiff, setCachedState } from '../store';
+import { EmployeeModel, UserModel, PayslipModel, WfhHistoryModel } from '../models';
+import { ensureLoaded, loadState, persistDiff, setCachedState, invalidateCache } from '../store';
 import { config } from '../config';
 import { withPdfBrowser } from '../pdfBrowser';
 import { monthLabel } from '../../shared/domain/payroll';
+import * as XLSX from 'xlsx';
 
 export const apiRouter = Router();
 
@@ -58,6 +59,416 @@ apiRouter.get('/accounts', requireAuth, requirePasswordChanged, requireRole('man
       workFromHome: !!a.workFromHome
     }))
   });
+});
+
+/**
+ * Helper: validate an IST date key `yyyy-MM-dd` and return its boundaries.
+ */
+function istDateBounds(dateKey: string): { start: Date; end: Date } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!m) return null;
+  const y = Number(m[1]), mo = Number(m[2]) - 1, d = Number(m[3]);
+  const date = new Date(y, mo, d);
+  if (date.getFullYear() !== y || date.getMonth() !== mo || date.getDate() !== d) return null;
+  return {
+    start: new Date(Date.UTC(y, mo, d, 0, 0, 0, 0)),
+    end: new Date(Date.UTC(y, mo, d, 23, 59, 59, 999))
+  };
+}
+
+/**
+ * Helper: month boundaries for an IST `yyyy-mm` key.
+ */
+function istMonthBounds(monthKey: string): { start: Date; end: Date } | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(monthKey);
+  if (!m) return null;
+  const y = Number(m[1]), mo = Number(m[2]) - 1;
+  const first = new Date(y, mo, 1);
+  const last = new Date(y, mo + 1, 0);
+  if (first.getFullYear() !== y || first.getMonth() !== mo) return null;
+  return {
+    start: new Date(Date.UTC(y, mo, 1, 0, 0, 0, 0)),
+    end: new Date(Date.UTC(y, mo, last.getDate(), 23, 59, 59, 999))
+  };
+}
+
+/**
+ * GET /api/wfh-history
+ * Filtered WFH history records. Management sees all; employees see only their own.
+ * Query: month (yyyy-mm), employeeId, teamId
+ */
+apiRouter.get('/wfh-history', requireAuth, requirePasswordChanged, async (req, res) => {
+  const caller = req.user!;
+  const isManager = caller.role === 'management';
+  const callerEmpId = caller.employeeId ?? caller.id;
+
+  const monthRaw = req.query?.month;
+  const month = monthRaw == null ? '' : (Array.isArray(monthRaw) ? String(monthRaw[0]) : String(monthRaw));
+  const employeeIdRaw = req.query?.employeeId;
+  const employeeId = employeeIdRaw == null ? '' : (Array.isArray(employeeIdRaw) ? String(employeeIdRaw[0]) : String(employeeIdRaw));
+  const teamIdRaw = req.query?.teamId;
+  const teamId = teamIdRaw == null ? '' : (Array.isArray(teamIdRaw) ? String(teamIdRaw[0]) : String(teamIdRaw));
+
+  const monthBounds = month ? istMonthBounds(month) : null;
+  if (month && !monthBounds) {
+    res.status(400).json({ error: 'Invalid month. Use yyyy-mm.' });
+    return;
+  }
+
+  // Employees may only query their own history.
+  if (!isManager && employeeId && employeeId !== callerEmpId) {
+    res.status(403).json({ error: 'You may only view your own WFH history.' });
+    return;
+  }
+
+  const filter: Record<string, any> = {};
+  if (monthBounds) {
+    filter.declaredAt = { $gte: monthBounds.start, $lte: monthBounds.end };
+  }
+  if (employeeId) filter.employeeId = employeeId;
+  else if (!isManager) filter.employeeId = callerEmpId;
+
+  const records = await WfhHistoryModel.find(filter)
+    .sort({ declaredAt: -1 })
+    .lean();
+
+  let result = records.map((r: any) => ({
+    id: r._id,
+    employeeId: r.employeeId,
+    employeeName: r.employeeName,
+    date: r.date,
+    workFromHome: r.workFromHome,
+    declaredAt: r.declaredAt ? new Date(r.declaredAt).toISOString() : '',
+    createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : '',
+    updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : '',
+    source: r.source,
+    correctionReason: r.correctionReason ?? undefined,
+    correctedBy: r.correctedBy ?? undefined,
+    correctedAt: r.correctedAt ? new Date(r.correctedAt).toISOString() : undefined,
+    previousValue: r.previousValue ?? undefined,
+    originalRecordId: r.originalRecordId ?? undefined,
+    isLatest: r.isLatest
+  }));
+
+  // Team filter requires joining against employees.
+  if (teamId) {
+    const employees = await EmployeeModel.find({ teamId }).select({ _id: 1 }).lean();
+    const empIds = new Set(employees.map((e) => e._id));
+    result = result.filter((r) => empIds.has(r.employeeId));
+  }
+
+  res.json({ wfhHistory: result });
+});
+
+/**
+ * GET /api/wfh-history/summary
+ * Monthly WFH summary per employee (distinct dates where the latest status is WFH).
+ * Query: month (yyyy-mm), teamId
+ */
+apiRouter.get('/wfh-history/summary', requireAuth, requirePasswordChanged, async (req, res) => {
+  const caller = req.user!;
+  const isManager = caller.role === 'management';
+  const callerEmpId = caller.employeeId ?? caller.id;
+
+  const monthRaw = req.query?.month;
+  const month = monthRaw == null ? '' : (Array.isArray(monthRaw) ? String(monthRaw[0]) : String(monthRaw));
+  const teamIdRaw = req.query?.teamId;
+  const teamId = teamIdRaw == null ? '' : (Array.isArray(teamIdRaw) ? String(teamIdRaw[0]) : String(teamIdRaw));
+
+  const monthBounds = month ? istMonthBounds(month) : null;
+  if (month && !monthBounds) {
+    res.status(400).json({ error: 'Invalid month. Use yyyy-mm.' });
+    return;
+  }
+
+  if (!isManager && callerEmpId) {
+    // Employees only see their own summary.
+  }
+
+  // Effective records: latest per (employeeId, date) within the month.
+  const filter: Record<string, any> = { isLatest: true };
+  if (monthBounds) filter.declaredAt = { $gte: monthBounds.start, $lte: monthBounds.end };
+
+  const records = await WfhHistoryModel.find(filter).sort({ employeeId: 1, date: 1 }).lean();
+
+  // If team filter, restrict to employees in that team.
+  let teamEmpIds: Set<string> | null = null;
+  if (teamId) {
+    const employees = await EmployeeModel.find({ teamId }).select({ _id: 1 }).lean();
+    teamEmpIds = new Set(employees.map((e) => e._id));
+  }
+
+  // Build employee name map.
+  const allEmpIds = new Set(records.map((r) => r.employeeId));
+  const employees = await EmployeeModel.find({ _id: { $in: Array.from(allEmpIds) } }).select({ _id: 1, name: 1, teamId: 1 }).lean();
+  const empMap = new Map(employees.map((e) => [e._id, { name: e.name, teamId: e.teamId }]));
+
+  // Aggregate per employee: count distinct dates where workFromHome === true.
+  const perEmp = new Map<string, { name: string; teamId?: string; wfhDays: number; dates: string[] }>();
+  for (const r of records as any[]) {
+    if (!isManager && r.employeeId !== callerEmpId) continue;
+    if (teamEmpIds && !teamEmpIds.has(r.employeeId)) continue;
+    const emp = empMap.get(r.employeeId);
+    if (!emp) continue;
+    const key = r.employeeId;
+    if (!perEmp.has(key)) {
+      perEmp.set(key, { name: emp.name, teamId: emp.teamId ?? '', wfhDays: 0, dates: [] });
+    }
+    if (r.workFromHome === true) {
+      perEmp.get(key)!.wfhDays += 1;
+      perEmp.get(key)!.dates.push(r.date);
+    }
+  }
+
+  const summary = Array.from(perEmp.entries()).map(([employeeId, v]) => ({
+    employeeId,
+    name: v.name,
+    teamId: v.teamId ?? '',
+    wfhDays: v.wfhDays,
+    wfhDates: v.dates.sort()
+  })).sort((a, b) => b.wfhDays - a.wfhDays || a.name.localeCompare(b.name));
+
+  res.json({ summary, month });
+});
+
+/**
+ * GET /api/wfh-history/export
+ * Excel export of WFH history respecting month, employee and team filters.
+ */
+apiRouter.get('/wfh-history/export', requireAuth, requirePasswordChanged, async (req, res) => {
+  const caller = req.user!;
+  const isManager = caller.role === 'management';
+  const callerEmpId = caller.employeeId ?? caller.id;
+
+  const monthRaw = req.query?.month;
+  const month = monthRaw == null ? '' : (Array.isArray(monthRaw) ? String(monthRaw[0]) : String(monthRaw));
+  const employeeIdRaw = req.query?.employeeId;
+  const employeeId = employeeIdRaw == null ? '' : (Array.isArray(employeeIdRaw) ? String(employeeIdRaw[0]) : String(employeeIdRaw));
+  const teamIdRaw = req.query?.teamId;
+  const teamId = teamIdRaw == null ? '' : (Array.isArray(teamIdRaw) ? String(teamIdRaw[0]) : String(teamIdRaw));
+
+  const monthBounds = month ? istMonthBounds(month) : null;
+  if (month && !monthBounds) {
+    res.status(400).json({ error: 'Invalid month. Use yyyy-mm.' });
+    return;
+  }
+
+  if (!isManager && employeeId && employeeId !== callerEmpId) {
+    res.status(403).json({ error: 'You may only export your own WFH history.' });
+    return;
+  }
+
+  const filter: Record<string, any> = { isLatest: true };
+  if (monthBounds) filter.declaredAt = { $gte: monthBounds.start, $lte: monthBounds.end };
+  if (employeeId) filter.employeeId = employeeId;
+  else if (!isManager) filter.employeeId = callerEmpId;
+
+  const records = await WfhHistoryModel.find(filter).sort({ employeeId: 1, date: 1 }).lean();
+
+  let teamEmpIds: Set<string> | null = null;
+  if (teamId) {
+    const employees = await EmployeeModel.find({ teamId }).select({ _id: 1 }).lean();
+    teamEmpIds = new Set(employees.map((e) => e._id));
+  }
+
+  const allEmpIds = new Set(records.map((r) => r.employeeId));
+  const employees = await EmployeeModel.find({ _id: { $in: Array.from(allEmpIds) } }).select({ _id: 1, name: 1, teamId: 1 }).lean();
+  const empMap = new Map(employees.map((e) => [e._id, { name: e.name, teamId: e.teamId }]));
+
+  // ---------- Sheet 1: Monthly Summary ----------
+  const summaryRows: any[] = [];
+  const perEmp = new Map<string, { name: string; teamId?: string; wfhDays: number; dates: string[] }>();
+  for (const r of records as any[]) {
+    if (!isManager && r.employeeId !== callerEmpId) continue;
+    if (teamEmpIds && !teamEmpIds.has(r.employeeId)) continue;
+    const emp = empMap.get(r.employeeId);
+    if (!emp) continue;
+    const key = r.employeeId;
+    if (!perEmp.has(key)) perEmp.set(key, { name: emp.name, teamId: emp.teamId ?? '', wfhDays: 0, dates: [] });
+    if (r.workFromHome === true) {
+      perEmp.get(key)!.wfhDays += 1;
+      perEmp.get(key)!.dates.push(r.date);
+    }
+  }
+  for (const [employeeId, v] of perEmp.entries()) {
+    summaryRows.push({
+      'Employee Name': v.name,
+      'Employee ID': employeeId,
+      Team: v.teamId ?? '',
+      'Total WFH Days': v.wfhDays,
+      'WFH Dates': v.dates.sort().join(', ')
+    });
+  }
+  summaryRows.sort((a, b) => Number(b['Total WFH Days']) - Number(a['Total WFH Days']) || String(a['Employee Name']).localeCompare(String(b['Employee Name'])));
+
+  // ---------- Sheet 2: Detailed History ----------
+  const detailRows: any[] = [];
+  for (const r of records as any[]) {
+    if (!isManager && r.employeeId !== callerEmpId) continue;
+    if (teamEmpIds && !teamEmpIds.has(r.employeeId)) continue;
+    const emp = empMap.get(r.employeeId);
+    if (!emp) continue;
+    detailRows.push({
+      'Employee': emp.name,
+      'Date': r.date,
+      'Effective WFH Status': r.workFromHome === true ? 'WFH' : 'Office',
+      'Original Declaration': r.previousValue === undefined ? '—' : (r.previousValue === true ? 'WFH' : 'Office'),
+      'Correction Details': r.correctionReason ?? '—',
+      'Declared At': r.declaredAt ? new Date(r.declaredAt).toISOString() : '',
+      'Corrected By': r.correctedBy ?? '—'
+    });
+  }
+
+  // ---------- Sheet 3: Audit History ----------
+  const auditRows: any[] = [];
+  for (const r of records as any[]) {
+    if (r.source !== 'management_correction') continue;
+    if (!isManager && r.employeeId !== callerEmpId) continue;
+    if (teamEmpIds && !teamEmpIds.has(r.employeeId)) continue;
+    const emp = empMap.get(r.employeeId);
+    if (!emp) continue;
+    auditRows.push({
+      'Employee': emp.name,
+      'Date': r.date,
+      'Original Value': r.previousValue === undefined ? '—' : (r.previousValue === true ? 'WFH' : 'Office'),
+      'New Value': r.workFromHome === true ? 'WFH' : 'Office',
+      'Correction Reason': r.correctionReason ?? '—',
+      'Corrected By': r.correctedBy ?? '—',
+      'Corrected At': r.correctedAt ? new Date(r.correctedAt).toISOString() : ''
+    });
+  }
+
+  const wb = XLSX.utils.book_new();
+  wb.SheetNames.push('Monthly Summary', 'Detailed History', 'Audit History');
+  wb.Sheets['Monthly Summary'] = XLSX.utils.json_to_sheet(summaryRows);
+  wb.Sheets['Detailed History'] = XLSX.utils.json_to_sheet(detailRows);
+  wb.Sheets['Audit History'] = XLSX.utils.json_to_sheet(auditRows);
+
+  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+  const fileName = `WFH-History${month ? '_' + month : ''}.xlsx`;
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  res.setHeader('Content-Length', String(buffer.length));
+  res.send(buffer);
+});
+
+/**
+ * GET /api/wfh-history/:employeeId
+ * Full WFH history for one employee. Management sees any employee; employees see only themselves.
+ */
+apiRouter.get('/wfh-history/:employeeId', requireAuth, requirePasswordChanged, async (req, res) => {
+  const caller = req.user!;
+  const isManager = caller.role === 'management';
+  const callerEmpId = caller.employeeId ?? caller.id;
+  const targetEmpId = String(req.params.employeeId);
+
+  if (!isManager && targetEmpId !== callerEmpId) {
+    res.status(403).json({ error: 'You may only view your own WFH history.' });
+    return;
+  }
+
+  const records = await WfhHistoryModel.find({ employeeId: targetEmpId })
+    .sort({ date: -1, declaredAt: -1 })
+    .lean();
+
+  res.json({
+    employeeId: targetEmpId,
+    history: records.map((r: any) => ({
+      id: r._id,
+      date: r.date,
+      workFromHome: r.workFromHome,
+      declaredAt: r.declaredAt ? new Date(r.declaredAt).toISOString() : '',
+      source: r.source,
+      correctionReason: r.correctionReason ?? undefined,
+      correctedBy: r.correctedBy ?? undefined,
+      correctedAt: r.correctedAt ? new Date(r.correctedAt).toISOString() : undefined,
+      previousValue: r.previousValue ?? undefined,
+      originalRecordId: r.originalRecordId ?? undefined,
+      isLatest: r.isLatest
+    }))
+  });
+});
+
+/**
+ * POST /api/wfh-history/:employeeId/:date/correct
+ * Management-only correction. Preserves the original record, inserts a superseding record.
+ */
+apiRouter.post('/wfh-history/:employeeId/:date/correct', requireAuth, requirePasswordChanged, requireRole('management'), async (req, res) => {
+  const actor = req.user!;
+  const targetEmpId = String(req.params.employeeId);
+  const dateKey = String(req.params.date);
+  const { workFromHome, reason } = req.body as { workFromHome?: boolean; reason?: string };
+
+  if (!istDateBounds(dateKey)) {
+    res.status(400).json({ error: 'Invalid date. Use yyyy-MM-dd.' });
+    return;
+  }
+  if (typeof workFromHome !== 'boolean') {
+    res.status(400).json({ error: 'workFromHome must be a boolean.' });
+    return;
+  }
+  if (!reason || !reason.trim()) {
+    res.status(400).json({ error: 'A correction reason is required.' });
+    return;
+  }
+
+  const now = new Date();
+
+  // Verify the employee exists.
+  const employee = await EmployeeModel.findOne({ _id: targetEmpId }).select({ name: 1 }).lean();
+  if (!employee) {
+    res.status(404).json({ error: 'Employee not found.' });
+    return;
+  }
+
+  // Find the current latest record for this employee/date.
+  const current = await WfhHistoryModel.findOne({ employeeId: targetEmpId, date: dateKey, isLatest: true }).lean();
+
+  // If nothing exists yet, create the first record (no previous value).
+  if (!current) {
+    await WfhHistoryModel.create({
+      _id: `wfh-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      employeeId: targetEmpId,
+      employeeName: employee.name,
+      date: dateKey,
+      workFromHome,
+      declaredAt: now,
+      createdAt: now,
+      updatedAt: now,
+      source: 'management_correction',
+      correctionReason: reason.trim(),
+      correctedBy: actor.name,
+      correctedAt: now,
+      isLatest: true
+    });
+    invalidateCache();
+    res.json({ ok: true });
+    return;
+  }
+
+  // Supersede the current latest record.
+  await WfhHistoryModel.updateOne({ _id: current._id }, { $set: { isLatest: false, updatedAt: now } });
+
+  await WfhHistoryModel.create({
+    _id: `wfh-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    employeeId: targetEmpId,
+    employeeName: employee.name,
+    date: dateKey,
+    workFromHome,
+    declaredAt: now,
+    createdAt: now,
+    updatedAt: now,
+    source: 'management_correction',
+    correctionReason: reason.trim(),
+    correctedBy: actor.name,
+    correctedAt: now,
+    previousValue: current.workFromHome,
+    originalRecordId: current._id,
+    isLatest: true
+  });
+  invalidateCache();
+  res.json({ ok: true });
 });
 
 /**

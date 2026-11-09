@@ -52,6 +52,7 @@ export interface DueReminder extends WorkdayBreak {
 
 /** Minutes from midnight for a 24-hour `HH:MM` string. */
 export function clockMinutes(value: string): number {
+  if (!value) return 0;
   const [h, m] = value.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 }

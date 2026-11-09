@@ -22,6 +22,38 @@ const LateLoginSchema = new Schema(
   opts
 );
 
+/**
+ * One row per WFH declaration or correction, per employee per IST date.
+ *
+ * Append-only: the original declaration is never overwritten. A correction
+ * supersedes the previous record by setting its `isLatest` to false and
+ * inserting a new record with `isLatest: true`. The effective WFH status for
+ * an employee on a date is the record with `isLatest === true`.
+ */
+const WfhHistorySchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    employeeId: { type: String, required: true },
+    employeeName: { type: String, required: true },
+    date: { type: String, required: true }, // IST yyyy-MM-dd
+    workFromHome: { type: Boolean, required: true },
+    declaredAt: { type: Date, required: true },
+    createdAt: { type: Date, required: true },
+    updatedAt: { type: Date, required: true },
+    source: { type: String, enum: ['login', 'management_correction', 'historical_recovery'], required: true },
+    correctionReason: { type: String },
+    correctedBy: { type: String },
+    correctedAt: { type: Date },
+    previousValue: { type: Boolean },
+    originalRecordId: { type: String },
+    isLatest: { type: Boolean, default: true }
+  },
+  opts
+);
+WfhHistorySchema.index({ employeeId: 1, date: 1 });
+WfhHistorySchema.index({ date: 1 });
+WfhHistorySchema.index({ employeeId: 1, date: 1, isLatest: 1 });
+
 const UserSchema = new Schema(
   {
     _id: { type: String, required: true },
@@ -319,6 +351,7 @@ export const AuditModel = mongoose.model('AuditEntry', AuditSchema);
 export const SettingsModel = mongoose.model('AppSettings', SettingsSchema);
 export const PasswordResetModel = mongoose.model('PasswordReset', PasswordResetSchema);
 export const LateLoginModel = mongoose.model('LateLogin', LateLoginSchema);
+export const WfhHistoryModel = mongoose.model('WfhHistory', WfhHistorySchema);
 
 // ── Bug Tracker ──────────────────────────────────────────────────────────────
 // The bug tracker is a separate domain with its own people, projects and issues.

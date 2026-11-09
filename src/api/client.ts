@@ -107,6 +107,40 @@ export const api = {
 
   accounts: () => request<{ accounts: AccountSummary[] }>('/accounts'),
 
+  wfhHistory: (params?: { month?: string; employeeId?: string; teamId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.month) qs.set('month', params.month);
+    if (params?.employeeId) qs.set('employeeId', params.employeeId);
+    if (params?.teamId) qs.set('teamId', params.teamId);
+    return request<{ wfhHistory: any[] }>(`/wfh-history${qs.toString() ? '?' + qs.toString() : ''}`);
+  },
+
+  wfhSummary: (params?: { month?: string; teamId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.month) qs.set('month', params.month);
+    if (params?.teamId) qs.set('teamId', params.teamId);
+    return request<{ summary: any[]; month: string }>(`/wfh-history/summary${qs.toString() ? '?' + qs.toString() : ''}`);
+  },
+
+  wfhEmployeeHistory: (employeeId: string) =>
+    request<{ employeeId: string; history: any[] }>(`/wfh-history/${encodeURIComponent(employeeId)}`),
+
+  wfhCorrect: (employeeId: string, date: string, workFromHome: boolean, reason: string) =>
+    request<{ ok: boolean }>(`/wfh-history/${encodeURIComponent(employeeId)}/${encodeURIComponent(date)}/correct`, {
+      method: 'POST',
+      body: JSON.stringify({ workFromHome, reason })
+    }),
+
+  wfhExport: (params?: { month?: string; employeeId?: string; teamId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.month) qs.set('month', params.month);
+    if (params?.employeeId) qs.set('employeeId', params.employeeId);
+    if (params?.teamId) qs.set('teamId', params.teamId);
+    return fetch(`${BASE}/api/wfh-history/export${qs.toString() ? '?' + qs.toString() : ''}`, {
+      credentials: 'include'
+    });
+  },
+
   mutate: (op: string, args: Record<string, unknown> = {}) =>
     request<{ state: AppState; credentials?: Credentials }>('/state/mutate', { method: 'POST', body: JSON.stringify({ op, args }) })
 };

@@ -6,6 +6,7 @@ export const MINUTE = 60_000;
 export const toDateKey = (d: Date): string => format(d, 'yyyy-MM-dd');
 
 export function fromDateKey(key: string): Date {
+  if (!key) return new Date(NaN);
   const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
@@ -28,7 +29,10 @@ export function fmtClock(ms: number): string {
 }
 
 export const fmtTime = (iso?: string): string => iso ? format(parseISO(iso), 'HH:mm') : '—';
-export const fmtDate = (key: string, pattern = 'd MMM yyyy'): string => format(fromDateKey(key), pattern);
+export const fmtDate = (key: string, pattern = 'd MMM yyyy'): string => {
+  if (!key) return '—';
+  return format(fromDateKey(key), pattern);
+};
 export const fmtDateTime = (iso: string): string => format(parseISO(iso), 'd MMM yyyy, HH:mm');
 
 export const weekStartKey = (key: string): string =>

@@ -159,6 +159,7 @@ export function buildMasterState(now: number = Date.now()): AppState {
     audit: [],
     lateLogins: [],
     lateLoginHistory: [],
+    wfhHistory: [],
     settings: { ...defaultSettings }
   };
 }
@@ -190,6 +191,7 @@ export function buildEmptyState(now: number = Date.now()): AppState {
     audit: [],
     lateLogins: [],
     lateLoginHistory: [],
+    wfhHistory: [],
     settings: { ...defaultSettings }
   };
 }
@@ -410,6 +412,7 @@ export function buildInitialState(now: number = Date.now()): AppState {
     audit,
     lateLogins: [],
     lateLoginHistory: [],
+    wfhHistory: [],
     settings
   };
 }

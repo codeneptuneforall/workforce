@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import type { AppState, AppNotification, AuditEntry, Employee, Holiday, Leave, PayrollRun, Payslip, Project, SalaryStructure, Settings, ShortfallReview, Task, Team, Timesheet, WorkSession } from '../shared/types';
+import type { AppState, AppNotification, AuditEntry, Employee, Holiday, Leave, PayrollRun, Payslip, Project, SalaryStructure, Settings, ShortfallReview, Task, Team, Timesheet, WfhHistory, WorkSession } from '../shared/types';
 import { LEARNING_PROJECT_ID, learningProject } from '../shared/domain/learning';
 import { pauseTimer } from '../shared/domain/timerMutations';
 import { isBreakTime } from '../shared/domain/workday';
@@ -20,7 +20,8 @@ import {
   TaskModel,
   UserModel,
   TeamModel,
-  TimesheetModel
+  TimesheetModel,
+  WfhHistoryModel
 } from './models';
 
 /**
@@ -69,6 +70,7 @@ export async function loadState(): Promise<AppState> {
     audit,
     lateUsers,
     lateHistory,
+    wfhHistory,
     settingsDoc
   ] = await Promise.all([
     EmployeeModel.find({}).lean(),
@@ -87,6 +89,7 @@ export async function loadState(): Promise<AppState> {
     AuditModel.find({}).sort({ at: -1 }).limit(1000).lean(),
     UserModel.find({ lateLoginAt: { $exists: true } }).lean(),
     LateLoginModel.find({}).sort({ at: -1 }).limit(500).lean(),
+    WfhHistoryModel.find({}).sort({ declaredAt: -1 }).lean(),
     SettingsModel.findOne({ _id: 'app' }).lean()
   ]);
 
@@ -108,6 +111,7 @@ export async function loadState(): Promise<AppState> {
     audit: audit.map((d) => withId<AuditEntry>(d)),
     lateLogins: lateUsers.map((u: any) => ({ employeeId: u.employeeId ?? u._id, name: u.name, reason: u.lateLoginReason ?? '', at: u.lateLoginAt ? new Date(u.lateLoginAt).toISOString() : '' })),
     lateLoginHistory: lateHistory.map((d: any) => ({ id: d._id, employeeId: d.employeeId, name: d.name, reason: d.reason, at: new Date(d.at).toISOString() })),
+    wfhHistory: wfhHistory.map((d: any) => withId<WfhHistory>(d)),
     settings: (settingsDoc?.settings ?? {}) as Settings
   };
   return state;
@@ -184,6 +188,7 @@ export async function persistDiff(prev: AppState, next: AppState): Promise<void>
     syncCollection(PayslipModel, prev.payslips, next.payslips, (p) => p.id),
     syncCollection(NotificationModel, prev.notifications, next.notifications, (n) => n.id),
     syncCollection(AuditModel, prev.audit, next.audit, (a) => a.id),
+    syncCollection(WfhHistoryModel, prev.wfhHistory, next.wfhHistory, (w) => w.id),
     syncSettings(prev.settings, next.settings, next.version)
   ]);
 }
@@ -234,6 +239,7 @@ export async function clearAll(): Promise<void> {
     PayslipModel.deleteMany({}),
     NotificationModel.deleteMany({}),
     AuditModel.deleteMany({}),
+    WfhHistoryModel.deleteMany({}),
     SettingsModel.deleteMany({})
   ]);
   cache = null;

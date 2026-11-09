@@ -13,7 +13,8 @@ import type { AppState, AuthUser, Employee, Project, Role, Task } from '../types
 const maskBankDetails = <T>(ss: T): T => ss;
 
 export function projectState(state: AppState, user: AuthUser): AppState {
-  if (user.role === 'management') {
+  const isManager = user.role === 'management';
+  if (isManager) {
     const canSeePayroll = user.canManagePayroll;
     return {
       ...state,
@@ -44,7 +45,8 @@ export function projectState(state: AppState, user: AuthUser): AppState {
     payrollRuns: state.payrollRuns.map((r) => ({ ...r, history: [] })),
     payslips: state.payslips.filter((p) => p.employeeId === own.id),
     notifications: state.notifications.filter((n) => n.audience === empId || n.audience === own.id),
-    audit: []
+    audit: [],
+    wfhHistory: isManager ? state.wfhHistory : state.wfhHistory.filter((w) => w.employeeId === empId)
   };
 }
 

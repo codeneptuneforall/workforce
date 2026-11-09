@@ -354,6 +354,26 @@ export interface LateLogin {
   at: string;
 }
 
+export type WfhHistorySource = 'login' | 'management_correction' | 'historical_recovery';
+
+export interface WfhHistory {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string; // IST yyyy-MM-dd
+  workFromHome: boolean;
+  declaredAt: string; // ISO timestamp
+  createdAt: string;
+  updatedAt: string;
+  source: WfhHistorySource;
+  correctionReason?: string;
+  correctedBy?: string;
+  correctedAt?: string;
+  previousValue?: boolean;
+  originalRecordId?: string;
+  isLatest: boolean;
+}
+
 export type DeductionMethod = 'not_configured' | 'daily_amount' | 'monthly_proration' | 'manual';
 export type PayrollBasis = 'not_configured' | 'calendar_days' | 'scheduled_working_days' | 'fixed_days';
 export type LeaveTreatment = 'not_configured' | 'paid' | 'unpaid';
@@ -420,6 +440,7 @@ export interface AppState {
   audit: AuditEntry[];
   lateLogins: { employeeId: string; name: string; reason: string; at: string }[];
   lateLoginHistory: LateLogin[];
+  wfhHistory: WfhHistory[];
   settings: Settings;
 }
 

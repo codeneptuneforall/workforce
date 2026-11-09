@@ -12,7 +12,7 @@ import {
   verifyPassword
 } from '../auth';
 import { config } from '../config';
-import { LateLoginModel, PasswordResetModel, UserModel } from '../models';
+import { LateLoginModel, PasswordResetModel, UserModel, WfhHistoryModel } from '../models';
 import { invalidateCache } from '../store';
 import type { UserDocument } from '../auth';
 
@@ -70,6 +70,27 @@ authRouter.post('/login', async (req, res) => {
       return;
     }
     await UserModel.updateOne({ _id: user._id }, { $set: { workFromHome, workFromHomeAt: now } });
+
+    // Append a WFH history record for this employee / IST date. The existing
+    // User fields are left untouched for backward compatibility; this record is
+    // the source of truth for historical WFH reporting.
+    const wfhDate = `${istYear}-${String(istMonth + 1).padStart(2, '0')}-${String(istDay).padStart(2, '0')}`;
+    const existing = await WfhHistoryModel.findOne({ employeeId: user.employeeId ?? user._id, date: wfhDate, isLatest: true }).lean();
+    if (!existing) {
+      await WfhHistoryModel.create({
+        _id: `wfh-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        employeeId: user.employeeId ?? user._id,
+        employeeName: user.name,
+        date: wfhDate,
+        workFromHome,
+        declaredAt: now,
+        createdAt: now,
+        updatedAt: now,
+        source: 'login',
+        isLatest: true
+      });
+      invalidateCache();
+    }
   }
 
   if (isLate && user.role === 'employee' && !alreadyLoggedInToday) {

@@ -88,6 +88,7 @@ const EMPTY_STATE: AppState = {
   audit: [],
   lateLogins: [],
   lateLoginHistory: [],
+  wfhHistory: [],
   settings: {
     companyName: '',
     companyAddress: '',

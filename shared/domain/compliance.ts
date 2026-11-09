@@ -133,7 +133,7 @@ export function workingDaysLabel(emp: Employee, settings: Settings): string {
 
 export function dayEndMs(date: string, settings: Settings): number {
   const d = fromDateKey(date);
-  const [h, m] = settings.dayEndTime.split(':').map(Number);
+  const [h, m] = (settings.dayEndTime ?? '23:59').split(':').map(Number);
   d.setHours(h || 0, m || 0, 0, 0);
   return d.getTime();
 }
