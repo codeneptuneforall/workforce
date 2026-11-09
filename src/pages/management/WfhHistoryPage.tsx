@@ -82,14 +82,19 @@ export function WfhHistoryPage() {
   const searchLower = employeeSearch.toLowerCase();
   const filteredSummary = useMemo(() => {
     return summary.filter((s) =>
-      !searchLower || s.name.toLowerCase().includes(searchLower)
+      s.wfhDays > 0 && (!searchLower || s.name.toLowerCase().includes(searchLower))
     );
   }, [summary, searchLower]);
+
+  // WFH-only history (exclude Office declarations)
+  const wfhOnlyHistory = useMemo(() => {
+    return history.filter((h) => h.workFromHome === true);
+  }, [history]);
 
   const totalWfhDays = filteredSummary.reduce((a, s) => a + Number(s.wfhDays), 0);
   const employeesWithWfh = filteredSummary.filter((s) => s.wfhDays > 0).length;
   const avgWfhDays = filteredSummary.length ? (totalWfhDays / filteredSummary.length).toFixed(1) : '0';
-  const totalDeclarations = history.length;
+  const totalDeclarations = wfhOnlyHistory.length;
 
   // ---------- Handlers ----------
   const handleCorrect = async (employeeId: string, employeeName: string, date: string, currentWfh: boolean) => {
@@ -333,10 +338,10 @@ export function WfhHistoryPage() {
                 </Tr>
               </thead>
               <tbody>
-                {history.length === 0 && (
+                {wfhOnlyHistory.length === 0 && (
                   <Tr><Td colSpan={7} className="py-10 text-center text-ink-muted">No WFH declarations found for the selected period.</Td></Tr>
                 )}
-                {history.map((h) => {
+                {wfhOnlyHistory.map((h) => {
                   const emp = employees.find((e) => e.id === h.employeeId);
                   const isCorrected = h.source === 'management_correction';
                   return (
