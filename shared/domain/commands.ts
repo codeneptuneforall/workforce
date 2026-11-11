@@ -32,6 +32,7 @@ import {
 import { fail, withAudit } from './stateHelpers';
 import type { Mutation } from './stateHelpers';
 import { endTimer, flagSession, pauseTimer, resumeTimer, startTimer } from './timerMutations';
+import { breakAt, breakLabel } from './workday';
 import {
   applyLeave,
   cancelLeave,
@@ -215,6 +216,12 @@ const commands: Record<string, CommandDefinition> = {
       if (!employeeId) return fail('Your account is not linked to an employee record.');
       const owned = ownsSession(ctx, args.sessionId);
       if (owned !== true) return fail(owned);
+      // Block task switching during break hours — no resume and no new task
+      // are allowed while a break is active.
+      const b = breakAt(ctx.now);
+      if (b) {
+        return fail(`It is ${breakLabel(b)} — timers cannot be started or resumed during break hours.`);
+      }
       const mode = args.mode === 'end' ? 'end' : 'pause';
       const current = ctx.state.sessions.find((x) => x.id === args.sessionId);
       if (!current) return fail('Session not found.');
