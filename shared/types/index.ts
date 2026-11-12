@@ -47,7 +47,7 @@ export interface Employee {
   managerId?: string;
   status: EmployeeStatus;
   schedule: string;
-  dailyTargetMinutes: number;
+  dailyTargetMinutes?: number;
   workingDays: number[];
 }
 

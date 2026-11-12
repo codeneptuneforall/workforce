@@ -97,7 +97,7 @@ const EMPTY_STATE: AppState = {
     currency: 'INR',
     timezone: 'Asia/Kolkata (IST)',
     confidentialityNote: '',
-    dailyTargetMinutes: 480,
+    dailyTargetMinutes: 465,
     dayEndTime: '23:59',
     workingDays: [1, 2, 3, 4, 5],
     workingSaturdays: [1, 3],

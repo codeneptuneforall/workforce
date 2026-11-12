@@ -3,7 +3,7 @@ import { LEARNING_PROJECT_ID } from './learning';
 import { uid } from './random';
 import { fail, withAudit, withNotification } from './stateHelpers';
 import type { Mutation } from './stateHelpers';
-import { fmtDate } from './time';
+import { fmtDate, toHM } from './time';
 
 export function saveEmployee(s: AppState, emp: Employee, actor: string, now: number): Mutation {
   const isNew = !s.employees.some((e) => e.id === emp.id);
@@ -20,7 +20,7 @@ export function saveEmployee(s: AppState, emp: Employee, actor: string, now: num
     entity: 'Employee',
     entityId: `${emp.name} (${emp.code})`,
     previous: changed ? `Changed: ${changed}` : undefined,
-    next: isNew ? `${emp.designation} · target ${emp.dailyTargetMinutes / 60}h` : undefined
+    next: isNew ? `${emp.designation} · target ${toHM(emp.dailyTargetMinutes ?? s.settings.dailyTargetMinutes)}` : undefined
   });
 }
 

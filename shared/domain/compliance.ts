@@ -147,7 +147,7 @@ export function computeDay(ctx: ComplianceCtx, emp: Employee, date: string, now:
   );
   const scheduled = isScheduled(emp, date, ctx.settings);
   const review = ctx.reviews[dayKey(emp.id, date)];
-  const target = emp.dailyTargetMinutes || ctx.settings.dailyTargetMinutes;
+  const target = emp.dailyTargetMinutes ?? ctx.settings.dailyTargetMinutes;
   const expectedMin = scheduled && !holiday && !leave ? target : 0;
   const today = todayKey(now);
 

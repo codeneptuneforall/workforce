@@ -68,7 +68,7 @@ export function SettingsPage() {
         <Panel title="Working-hour policy">
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Default daily target" required hint="Company rule: 8:00. Employee exceptions are set on their profile." error={targetErr}>{(id) => <Input id={id} value={target} onChange={(e) => setTarget(e.target.value)} className="tnum" invalid={!!targetErr} />}</Field>
+                <Field label="Default daily target" required hint={`Company rule: ${toHM(state.settings.dailyTargetMinutes)}. Employee exceptions are set on their profile.`} error={targetErr}>{(id) => <Input id={id} value={target} onChange={(e) => setTarget(e.target.value)} className="tnum" invalid={!!targetErr} />}</Field>
                 <Field label="Day ends at" hint="Shortfalls become final only after this time. Use 23:59 for a fully flexible day.">{(id) => <Input id={id} type="time" value={f.dayEndTime} onChange={(e) => setF({ ...f, dayEndTime: e.target.value })} />}</Field>
                 <Field label="Approaching-target warning (minutes remaining)">{(id) => <Input id={id} type="number" min={0} value={f.approachingWarningMinutes} onChange={(e) => setF({ ...f, approachingWarningMinutes: Number(e.target.value) || 0 })} />}</Field>
                 <Field label="No time recorded on a working day">{(id) => <Select id={id} value={f.absentPolicy} onChange={(e) => setF({ ...f, absentPolicy: e.target.value as Settings['absentPolicy'] })}><option value="not_recorded">Show as Not Recorded (review)</option><option value="mark_absent">Mark as Absent</option></Select>}</Field>

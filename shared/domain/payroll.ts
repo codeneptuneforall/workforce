@@ -67,7 +67,7 @@ shortfallMin: number)
   if (!settings.deductionEnabled)
   return { amount: null, breakdown: '', missing: 'Shortfall deductions are disabled in payroll policy settings.' };
   const hrs = shortfallMin / 60;
-  const targetH = (emp.dailyTargetMinutes || settings.dailyTargetMinutes) / 60;
+  const targetH = (emp.dailyTargetMinutes ?? settings.dailyTargetMinutes) / 60;
   switch (settings.deductionMethod) {
     case 'not_configured':
       return { amount: null, breakdown: '', missing: 'No deduction method has been configured and approved by management.' };

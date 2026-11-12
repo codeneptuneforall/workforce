@@ -18,7 +18,7 @@ const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const schedules = ['General shift · 09:30–18:30', 'Early shift · 07:30–16:30', 'Late shift · 12:00–21:00', 'Flexible hours'];
 
 export function blankEmployee(): Employee {
-  return { id: uid('e'), code: '', name: '', email: '', phone: '', designation: '', teamId: '', joiningDate: todayKey(), managerId: '', status: 'Active', schedule: schedules[0], dailyTargetMinutes: 480, workingDays: [1, 2, 3, 4, 5] };
+  return { id: uid('e'), code: '', name: '', email: '', phone: '', designation: '', teamId: '', joiningDate: todayKey(), managerId: '', status: 'Active', schedule: schedules[0], workingDays: [1, 2, 3, 4, 5] };
 }
 
 export function EmployeeFormDrawer({ employee, onClose, onSaved }: {employee: Employee | null;onClose: () => void;onSaved?: (e: Employee) => void;}) {
@@ -26,17 +26,17 @@ export function EmployeeFormDrawer({ employee, onClose, onSaved }: {employee: Em
   const { mutateWithResult, pending, error, setError } = useMutation();
   const { accounts } = useAccounts(true);
   const [f, setF] = useState<Employee | null>(employee);
-  const [target, setTarget] = useState('8:00');
+  const [target, setTarget] = useState(toHM(state.settings.dailyTargetMinutes));
   const [touched, setTouched] = useState(false);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [createdName, setCreatedName] = useState('');
   const [createdEmployee, setCreatedEmployee] = useState<Employee | null>(null);
   useEffect(() => {
     setF(employee);
-    setTarget(toHM(employee?.dailyTargetMinutes ?? 480));
+    setTarget(toHM(employee?.dailyTargetMinutes ?? state.settings.dailyTargetMinutes));
     setTouched(false);
     setError(null);
-  }, [employee, setError]);
+  }, [employee, state.settings.dailyTargetMinutes, setError]);
   if (!f) return <Drawer open={false} onClose={onClose} title=""><div /></Drawer>;
   const isNew = !state.employees.some((e) => e.id === f.id);
   const targetMin = parseHM(target);
@@ -94,7 +94,7 @@ export function EmployeeFormDrawer({ employee, onClose, onSaved }: {employee: Em
           <h3 className="mb-3 text-sm font-semibold">Work schedule</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Schedule">{(id) => <Select id={id} value={f.schedule} onChange={(e) => set({ schedule: e.target.value })}>{schedules.map((s) => <option key={s}>{s}</option>)}</Select>}</Field>
-            <Field label="Expected daily working hours" required hint="Company default is 8:00. Other values need an approved exception." error={show('target')}>
+            <Field label="Expected daily working hours" required hint={`Company default is ${toHM(state.settings.dailyTargetMinutes)}. Other values need an approved exception.`} error={show('target')}>
               {(id) => <Input id={id} value={target} onChange={(e) => setTarget(e.target.value)} className="tnum" invalid={!!show('target')} />}
             </Field>
           </div>

@@ -76,7 +76,7 @@ export function MyProfilePage() {
           <Panel title="Work schedule">
             <dl className="grid gap-5 sm:grid-cols-3">
               <KeyValue label="Schedule" value={emp.schedule} />
-              <KeyValue label="Daily target" value={fmtMin(emp.dailyTargetMinutes)} />
+              <KeyValue label="Daily target" value={fmtMin(emp.dailyTargetMinutes ?? state.settings.dailyTargetMinutes)} />
               <KeyValue label="Working days" value={workingDaysLabel(emp, state.settings)} />
             </dl>
           </Panel>

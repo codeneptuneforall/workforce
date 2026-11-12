@@ -90,7 +90,7 @@ function EmployeeDetail({ emp }: {emp: Employee;}) {
               <KeyValue label="Joining date" value={emp.joiningDate ? fmtDate(emp.joiningDate) : 'Not provided'} />
               <KeyValue label="Reporting manager" value={personName(emp.managerId)} />
               <KeyValue label="Schedule" value={emp.schedule} />
-              <KeyValue label="Daily target" value={fmtMin(emp.dailyTargetMinutes)} />
+              <KeyValue label="Daily target" value={fmtMin(emp.dailyTargetMinutes ?? state.settings.dailyTargetMinutes)} />
               <KeyValue label="Working days" value={workingDaysLabel(emp, state.settings)} />
             </dl>
           </Panel>

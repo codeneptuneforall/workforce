@@ -14,7 +14,7 @@ export function DailyTargetCard({ employee, showTimer = true }: {employee: Emplo
   const now = useNow(1000);
   const today = todayKey(now);
   const day = computeDay(ctx, employee, today, now);
-  const target = employee.dailyTargetMinutes;
+  const target = employee.dailyTargetMinutes ?? ctx.settings.dailyTargetMinutes;
   const pct = day.expectedMin > 0 ? day.completedMin / day.expectedMin * 100 : 0;
   const pctLabel = `${Number(Math.min(pct, 999).toFixed(2))}%`;
   const done = day.expectedMin > 0 && day.completedMin >= day.expectedMin;
