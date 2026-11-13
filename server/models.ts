@@ -52,7 +52,10 @@ const WfhHistorySchema = new Schema(
 );
 WfhHistorySchema.index({ employeeId: 1, date: 1 });
 WfhHistorySchema.index({ date: 1 });
-WfhHistorySchema.index({ employeeId: 1, date: 1, isLatest: 1 });
+WfhHistorySchema.index(
+  { employeeId: 1, date: 1 },
+  { unique: true, partialFilterExpression: { isLatest: true } }
+);
 
 const UserSchema = new Schema(
   {

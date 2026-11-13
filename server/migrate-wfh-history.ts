@@ -11,12 +11,17 @@ import { WfhHistoryModel } from './models';
  * Append-only: creates new WfhHistory records with source 'historical_recovery'.
  * Does not modify existing User documents.
  *
+ * Also cleans up duplicate isLatest records (same employeeId + date with
+ * multiple isLatest=true) and creates a unique partial index to prevent
+ * future duplicates.
+ *
  * Assumes mongoose is already connected. Caller manages the connection.
  */
 export async function migrateWfhHistory(): Promise<void> {
   const db = mongoose.connection.db;
   if (!db) throw new Error('Database not connected.');
 
+  // ── Step 1: Recover historical WFH declarations from User documents ──
   const users = await db
     .collection('users')
     .find(
@@ -66,7 +71,56 @@ export async function migrateWfhHistory(): Promise<void> {
     created++;
   }
 
-  console.log(`[wfh-migration] Complete: ${created} created, ${skipped} skipped, ${users.length} total.`);
+  // ── Step 2: Clean up duplicate isLatest records ──
+  // Find groups with multiple isLatest=true for same employeeId + date
+  const duplicates = await db.collection('wfhhistorys').aggregate([
+    { $match: { isLatest: true } },
+    {
+      $group: {
+        _id: { employeeId: '$employeeId', date: '$date' },
+        count: { $sum: 1 },
+        ids: { $push: '$_id' },
+        declaredAts: { $push: '$declaredAt' }
+      }
+    },
+    { $match: { count: { $gt: 1 } } }
+  ]).toArray();
+
+  let fixed = 0;
+  for (const group of duplicates) {
+    // Keep the most recent declaredAt as isLatest=true, supersede the rest
+    const sorted = group.ids.map((id: any, i: number) => ({ id, declaredAt: group.declaredAts[i] }))
+      .sort((a: any, b: any) => new Date(b.declaredAt).getTime() - new Date(a.declaredAt).getTime());
+
+    for (let i = 1; i < sorted.length; i++) {
+      await WfhHistoryModel.updateOne(
+        { _id: sorted[i].id },
+        { $set: { isLatest: false, updatedAt: new Date() } }
+      );
+      fixed++;
+    }
+    console.log(
+      `[wfh-migration] Dedup ${group._id.employeeId}/${group._id.date}: kept ${sorted[0].id}, superseded ${sorted.length - 1} record(s)`
+    );
+  }
+  console.log(`[wfh-migration] Deduplication complete: ${fixed} record(s) superseded.`);
+
+  // ── Step 3: Create unique partial index to prevent future duplicates ──
+  try {
+    await WfhHistoryModel.collection.createIndex(
+      { employeeId: 1, date: 1 },
+      { unique: true, partialFilterExpression: { isLatest: true } }
+    );
+    console.log('[wfh-migration] Created unique partial index on (employeeId, date) where isLatest=true');
+  } catch (err: any) {
+    if (err.code === 85 || err.code === 86) {
+      console.log('[wfh-migration] Index already exists:', err.codeName);
+    } else {
+      throw err;
+    }
+  }
+
+  console.log(`[wfh-migration] Complete: ${created} created, ${skipped} skipped, ${fixed} deduped, ${users.length} total.`);
 }
 
 /** Standalone CLI entry point. */

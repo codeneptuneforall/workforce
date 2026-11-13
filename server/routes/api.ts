@@ -204,7 +204,8 @@ apiRouter.get('/wfh-history/summary', requireAuth, requirePasswordChanged, async
   const empMap = new Map(employees.map((e) => [e._id, { name: e.name, teamId: e.teamId }]));
 
   // Aggregate per employee: count distinct dates where workFromHome === true.
-  const perEmp = new Map<string, { name: string; teamId?: string; wfhDays: number; dates: string[] }>();
+  // Use Set for dates to prevent double-counting if duplicate isLatest records exist.
+  const perEmp = new Map<string, { name: string; teamId?: string; wfhDays: number; dates: Set<string> }>();
   for (const r of records as any[]) {
     if (!isManager && r.employeeId !== callerEmpId) continue;
     if (teamEmpIds && !teamEmpIds.has(r.employeeId)) continue;
@@ -212,21 +213,23 @@ apiRouter.get('/wfh-history/summary', requireAuth, requirePasswordChanged, async
     if (!emp) continue;
     const key = r.employeeId;
     if (!perEmp.has(key)) {
-      perEmp.set(key, { name: emp.name, teamId: emp.teamId ?? '', wfhDays: 0, dates: [] });
+      perEmp.set(key, { name: emp.name, teamId: emp.teamId ?? '', wfhDays: 0, dates: new Set() });
     }
     if (r.workFromHome === true) {
-      perEmp.get(key)!.wfhDays += 1;
-      perEmp.get(key)!.dates.push(r.date);
+      perEmp.get(key)!.dates.add(r.date);
     }
   }
 
-  const summary = Array.from(perEmp.entries()).map(([employeeId, v]) => ({
-    employeeId,
-    name: v.name,
-    teamId: v.teamId ?? '',
-    wfhDays: v.wfhDays,
-    wfhDates: v.dates.sort()
-  })).sort((a, b) => b.wfhDays - a.wfhDays || a.name.localeCompare(b.name));
+  const summary = Array.from(perEmp.entries()).map(([employeeId, v]) => {
+    const dates = Array.from(v.dates).sort();
+    return {
+      employeeId,
+      name: v.name,
+      teamId: v.teamId ?? '',
+      wfhDays: dates.length,
+      wfhDates: dates
+    };
+  }).sort((a, b) => b.wfhDays - a.wfhDays || a.name.localeCompare(b.name));
 
   res.json({ summary, month });
 });
@@ -277,26 +280,26 @@ apiRouter.get('/wfh-history/export', requireAuth, requirePasswordChanged, async 
 
   // ---------- Sheet 1: Monthly Summary ----------
   const summaryRows: any[] = [];
-  const perEmp = new Map<string, { name: string; teamId?: string; wfhDays: number; dates: string[] }>();
+  const perEmp = new Map<string, { name: string; teamId?: string; wfhDays: number; dates: Set<string> }>();
   for (const r of records as any[]) {
     if (!isManager && r.employeeId !== callerEmpId) continue;
     if (teamEmpIds && !teamEmpIds.has(r.employeeId)) continue;
     const emp = empMap.get(r.employeeId);
     if (!emp) continue;
     const key = r.employeeId;
-    if (!perEmp.has(key)) perEmp.set(key, { name: emp.name, teamId: emp.teamId ?? '', wfhDays: 0, dates: [] });
+    if (!perEmp.has(key)) perEmp.set(key, { name: emp.name, teamId: emp.teamId ?? '', wfhDays: 0, dates: new Set() });
     if (r.workFromHome === true) {
-      perEmp.get(key)!.wfhDays += 1;
-      perEmp.get(key)!.dates.push(r.date);
+      perEmp.get(key)!.dates.add(r.date);
     }
   }
   for (const [employeeId, v] of perEmp.entries()) {
+    const dates = Array.from(v.dates).sort();
     summaryRows.push({
       'Employee Name': v.name,
       'Employee ID': employeeId,
       Team: v.teamId ?? '',
-      'Total WFH Days': v.wfhDays,
-      'WFH Dates': v.dates.sort().join(', ')
+      'Total WFH Days': dates.length,
+      'WFH Dates': dates.join(', ')
     });
   }
   summaryRows.sort((a, b) => Number(b['Total WFH Days']) - Number(a['Total WFH Days']) || String(a['Employee Name']).localeCompare(String(b['Employee Name'])));
