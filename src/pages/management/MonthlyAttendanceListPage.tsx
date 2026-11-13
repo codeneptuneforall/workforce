@@ -22,11 +22,20 @@ function fmtDateShort(key: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-function sumIntervalMinutes(ivs: { start: string; end?: string }[], now: number): number {
+function sumIntervalMinutes(ivs: { start: string; end?: string }[], sessionDate: string, today: string, now: number): number {
   let total = 0;
+  const isToday = sessionDate === today;
   for (const iv of ivs) {
     const st = +new Date(iv.start);
-    const en = iv.end ? +new Date(iv.end) : now;
+    let en: number;
+    if (iv.end) {
+      en = +new Date(iv.end);
+    } else if (isToday) {
+      en = now;
+    } else {
+      // Historical date with an open (no end) interval — don't count it
+      continue;
+    }
     if (en > st) total += en - st;
   }
   return Math.floor(total / 60_000);
@@ -38,6 +47,7 @@ export function MonthlyAttendanceListPage() {
   const isManager = user?.role === 'management';
   const callerEmpId = user?.employeeId ?? user?.id ?? '';
   const now = Date.now();
+  const today = todayKey(now);
 
   const [month, setMonth] = useState(currentMonthKey());
   const [teamId, setTeamId] = useState('');
@@ -97,7 +107,7 @@ export function MonthlyAttendanceListPage() {
 
       // Total minutes from all intervals
       for (const s of sessionList) {
-        totalMinutes += sumIntervalMinutes(s.intervals, now);
+        totalMinutes += sumIntervalMinutes(s.intervals, s.date, today, now);
       }
 
       const status = hasWorking ? 'Working' : hasPaused ? 'Paused' : 'Completed';
