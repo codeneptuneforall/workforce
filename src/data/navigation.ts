@@ -54,6 +54,7 @@ export const managementNav: NavGroup[] = [{
   label: 'Time',
   items: [
   { label: 'Attendance & Hours', to: '/management/attendance', icon: CalendarCheckIcon },
+  { label: 'Monthly Attendance', to: '/management/attendance/monthly', icon: ClockIcon },
   { label: 'Timesheets', to: '/management/timesheets', icon: ClipboardListIcon, badgeKey: 'timesheets' }]
 
 },
