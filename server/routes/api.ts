@@ -472,51 +472,6 @@ apiRouter.post('/wfh-history/:employeeId/:date/correct', requireAuth, requirePas
 });
 
 /**
- * POST /api/admin/clear-daily-target-overrides
- * One-time administrative endpoint.
- *
- * Clears every employee's dailyTargetMinutes override (sets to NULL) so all
- * employees follow the company-wide daily target setting. Management only.
- * Idempotent: safe to run multiple times. Invalidates the server cache so the
- * change takes effect immediately on the next page load.
- *
- * After running, this endpoint should be removed from production code.
- */
-apiRouter.post('/admin/clear-daily-target-overrides', requireAuth, requirePasswordChanged, requireRole('management'), async (_req, res) => {
-  try {
-    const result = await EmployeeModel.updateMany(
-      { dailyTargetMinutes: { $exists: true, $ne: null } },
-      { $set: { dailyTargetMinutes: null } }
-    );
-    invalidateCache();
-    res.json({
-      ok: true,
-      modifiedCount: result.modifiedCount,
-      message: `Cleared ${result.modifiedCount} employee daily target override(s). All employees now follow the company-wide daily target.`
-    });
-  } catch (err) {
-    console.error('[clear-daily-target-overrides] failed', err);
-    res.status(500).json({ error: 'Failed to clear daily target overrides.' });
-  }
-});
-
-/**
- * GET /api/admin/clear-daily-target-overrides
- * Help page — explains how to use the POST endpoint.
- */
-apiRouter.get('/admin/clear-daily-target-overrides', requireAuth, requirePasswordChanged, requireRole('management'), async (_req, res) => {
-  res.json({
-    ok: true,
-    message: 'Use POST to this endpoint to clear all employee dailyTargetMinutes overrides.',
-    example: {
-      curl: 'curl -X POST https://workforce-anwy.onrender.com/api/admin/clear-daily-target-overrides -H "Cookie: wf_session=YOUR_COOKIE"',
-      browser: 'Open DevTools → Application → Cookies → copy wf_session value, then run: fetch("/api/admin/clear-daily-target-overrides", { method: "POST", credentials: "include" })'
-    },
-    effect: 'Sets dailyTargetMinutes to NULL on all employees, so they follow the company-wide setting (7:45 / 465 min). Idempotent.'
-  });
-});
-
-/**
  * Generate and download a payslip PDF using Playwright Chromium.
  *
  * Renders the actual payslip preview page (PayslipPrintPage) through a real
