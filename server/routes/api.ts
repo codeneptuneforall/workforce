@@ -501,6 +501,22 @@ apiRouter.post('/admin/clear-daily-target-overrides', requireAuth, requirePasswo
 });
 
 /**
+ * GET /api/admin/clear-daily-target-overrides
+ * Help page — explains how to use the POST endpoint.
+ */
+apiRouter.get('/admin/clear-daily-target-overrides', requireAuth, requirePasswordChanged, requireRole('management'), async (_req, res) => {
+  res.json({
+    ok: true,
+    message: 'Use POST to this endpoint to clear all employee dailyTargetMinutes overrides.',
+    example: {
+      curl: 'curl -X POST https://workforce-anwy.onrender.com/api/admin/clear-daily-target-overrides -H "Cookie: wf_session=YOUR_COOKIE"',
+      browser: 'Open DevTools → Application → Cookies → copy wf_session value, then run: fetch("/api/admin/clear-daily-target-overrides", { method: "POST", credentials: "include" })'
+    },
+    effect: 'Sets dailyTargetMinutes to NULL on all employees, so they follow the company-wide setting (7:45 / 465 min). Idempotent.'
+  });
+});
+
+/**
  * Generate and download a payslip PDF using Playwright Chromium.
  *
  * Renders the actual payslip preview page (PayslipPrintPage) through a real
