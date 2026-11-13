@@ -472,6 +472,35 @@ apiRouter.post('/wfh-history/:employeeId/:date/correct', requireAuth, requirePas
 });
 
 /**
+ * POST /api/admin/clear-daily-target-overrides
+ * One-time administrative endpoint.
+ *
+ * Clears every employee's dailyTargetMinutes override (sets to NULL) so all
+ * employees follow the company-wide daily target setting. Management only.
+ * Idempotent: safe to run multiple times. Invalidates the server cache so the
+ * change takes effect immediately on the next page load.
+ *
+ * After running, this endpoint should be removed from production code.
+ */
+apiRouter.post('/admin/clear-daily-target-overrides', requireAuth, requirePasswordChanged, requireRole('management'), async (_req, res) => {
+  try {
+    const result = await EmployeeModel.updateMany(
+      { dailyTargetMinutes: { $exists: true, $ne: null } },
+      { $set: { dailyTargetMinutes: null } }
+    );
+    invalidateCache();
+    res.json({
+      ok: true,
+      modifiedCount: result.modifiedCount,
+      message: `Cleared ${result.modifiedCount} employee daily target override(s). All employees now follow the company-wide daily target.`
+    });
+  } catch (err) {
+    console.error('[clear-daily-target-overrides] failed', err);
+    res.status(500).json({ error: 'Failed to clear daily target overrides.' });
+  }
+});
+
+/**
  * Generate and download a payslip PDF using Playwright Chromium.
  *
  * Renders the actual payslip preview page (PayslipPrintPage) through a real
