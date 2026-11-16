@@ -114,7 +114,7 @@ export function MyTimesheetsPage() {
                 {[...ts.history].reverse().map((h, i) =>
               <li key={i} className="text-sm">
                     <p className="font-medium">{h.action} <span className="font-normal text-ink-muted">by {h.by}</span></p>
-                    <p className="text-xs text-ink-faint">{fmtDateTime(h.at)}</p>
+                    <p className="text-xs text-ink-faint">{fmtDateTime(h.at || (h as any).createdAt)}</p>
                     {h.note && <p className="mt-0.5 text-xs text-ink-2">{h.note}</p>}
                   </li>
               )}

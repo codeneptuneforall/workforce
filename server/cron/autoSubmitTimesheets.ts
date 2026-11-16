@@ -81,9 +81,9 @@ async function autoSubmitTimesheets(): Promise<{ submitted: number; skipped: num
           $push: {
             history: {
               id: `hist-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-              actorId: 'system',
-              message: 'Auto-submitted by system (week ended)',
-              createdAt: new Date().toISOString(),
+              action: 'Auto-submitted by system (week ended)',
+              by: 'System',
+              at: new Date().toISOString(),
             },
           },
         }
@@ -136,9 +136,9 @@ async function autoSubmitTimesheets(): Promise<{ submitted: number; skipped: num
         history: [
           {
             id: `hist-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-            actorId: 'system',
-            message: 'Auto-submitted by system (week ended)',
-            createdAt: new Date().toISOString(),
+            action: 'Auto-submitted by system (week ended)',
+            by: 'System',
+            at: new Date().toISOString(),
           },
         ],
       });

@@ -134,8 +134,12 @@ export function MonthlyAttendanceListPage() {
   }, [sessions, employees, month, teamId, employeeSearch, now]);
 
   // Summary stats
-  const totalDays = rows.length;
-  const totalHours = rows.reduce((a, r) => a + r.totalMinutes, 0);
+  // Distinct dates with recorded work (not counting multiple employees on the same day)
+  const distinctDates = new Set(rows.map((r) => r.date));
+  const totalDays = distinctDates.size;
+  const totalMinutes = rows.reduce((a, r) => a + r.totalMinutes, 0);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const avgMinutes = totalDays > 0 ? Math.round(totalMinutes / totalDays) : 0;
   const workingNow = rows.filter((r) => r.status === 'Working').length;
 
   const load = useCallback(async () => {
@@ -202,7 +206,7 @@ export function MonthlyAttendanceListPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-ink-muted">Total Hours Worked</p>
-                <p className="text-2xl font-semibold tnum">{Math.floor(totalHours / 60)}h {totalHours % 60}m</p>
+                <p className="text-2xl font-semibold tnum">{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</p>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ok-bg text-ok">
                 <ClockIcon className="h-5 w-5" />
@@ -231,8 +235,7 @@ export function MonthlyAttendanceListPage() {
               <div>
                 <p className="text-xs text-ink-muted">Avg Hours / Day</p>
                 <p className="text-2xl font-semibold tnum">
-                  {totalDays ? Math.floor(totalHours / totalDays) : 0}h
-                  {totalDays ? Math.round((totalHours % totalDays) / totalDays) : 0}m
+                  {Math.floor(avgMinutes / 60)}h {avgMinutes % 60}m
                 </p>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info-bg text-info">

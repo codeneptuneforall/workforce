@@ -142,7 +142,7 @@ function TimesheetDrawer({ ts, onClose, summary }: {ts: Timesheet | null;onClose
           <h3 className="mb-2 text-sm font-semibold">History</h3>
           <ol className="space-y-3 border-l border-line pl-4">
             {[...ts.history].reverse().map((h, i) =>
-            <li key={i} className="text-sm"><p className="font-medium">{h.action} <span className="font-normal text-ink-muted">by {h.by}</span></p><p className="text-xs text-ink-faint">{fmtDateTime(h.at)}</p>{h.note && <p className="text-xs text-ink-2">{h.note}</p>}</li>
+            <li key={i} className="text-sm"><p className="font-medium">{h.action ?? (h as any).message ?? 'Action'} <span className="font-normal text-ink-muted">by {h.by ?? (h as any).actorId ?? 'System'}</span></p><p className="text-xs text-ink-faint">{fmtDateTime(h.at || (h as any).createdAt)}</p>{h.note && <p className="text-xs text-ink-2">{h.note}</p>}</li>
             )}
           </ol>
         </section>

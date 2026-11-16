@@ -183,7 +183,7 @@ export function ShortfallDrawer({ day, onClose }: {day: DayCompliance | null;onC
               {[...day.review.history].reverse().map((h, i) =>
             <li key={i} className="text-sm">
                   <p><span className="font-medium">{h.from} → {h.to}</span> <span className="text-ink-muted">by {h.by}</span></p>
-                  <p className="text-xs text-ink-faint">{fmtDateTime(h.at)}{canPay && h.newDeduction != null && ` · final ${fmtINR(h.newDeduction)}`}</p>
+                  <p className="text-xs text-ink-faint">{fmtDateTime(h.at || (h as any).createdAt)}{canPay && h.newDeduction != null && ` · final ${fmtINR(h.newDeduction)}`}</p>
                   <p className="mt-0.5 text-xs text-ink-2">{h.reason}</p>
                 </li>
             )}

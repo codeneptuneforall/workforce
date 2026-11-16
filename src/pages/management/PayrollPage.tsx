@@ -271,7 +271,7 @@ export function PayrollPage() {
       {run.history.length > 0 &&
       <Panel title="Payroll history" className="mt-6">
           <ol className="space-y-3 border-l border-line pl-4">
-            {[...run.history].reverse().map((h, i) => <li key={i} className="text-sm"><p><span className="font-medium">{h.action}</span> <span className="text-ink-muted">by {h.by}</span></p><p className="text-xs text-ink-faint">{fmtDateTime(h.at)}{h.note && ` · ${h.note}`}</p></li>)}
+            {[...run.history].reverse().map((h, i) => <li key={i} className="text-sm"><p><span className="font-medium">{h.action}</span> <span className="text-ink-muted">by {h.by}</span></p><p className="text-xs text-ink-faint">{fmtDateTime(h.at || (h as any).createdAt)}{h.note && ` · ${h.note}`}</p></li>)}
           </ol>
         </Panel>
       }

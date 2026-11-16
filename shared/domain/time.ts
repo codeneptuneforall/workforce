@@ -33,7 +33,14 @@ export const fmtDate = (key: string, pattern = 'd MMM yyyy'): string => {
   if (!key) return '—';
   return format(fromDateKey(key), pattern);
 };
-export const fmtDateTime = (iso: string): string => format(parseISO(iso), 'd MMM yyyy, HH:mm');
+export const fmtDateTime = (iso?: string | null): string => {
+  if (!iso) return '—';
+  try {
+    return format(parseISO(iso), 'd MMM yyyy, HH:mm');
+  } catch {
+    return '—';
+  }
+};
 
 export const weekStartKey = (key: string): string =>
 toDateKey(startOfWeek(fromDateKey(key), { weekStartsOn: 1 }));
