@@ -160,7 +160,7 @@ export function AttendancePage() {
                   <Td align="right" className={r.below ? 'text-bad' : ''}>{r.below}</Td>
                   <Td align="right">{r.exceptions}</Td>
                   <Td align="right">{r.adjusted}</Td>
-                  <Td align="right" className="font-medium">{r.ended ? `${Math.round(r.met / r.ended * 100)}%` : '—'}</Td>
+                  <Td align="right" className="font-medium">{r.expected > 0 ? `${Math.round(r.completed / r.expected * 100)}%` : '—'}</Td>
                 </Tr>
             )}
             </tbody>
