@@ -24,10 +24,11 @@ const rangeOptions = [
 
 
 export function Overview() {
-  const { scopedIssues, currentUser, accessibleProjects, projectScope, setProjectScope } = useBugTracker();
+  const { scopedIssues, currentUser, accessibleProjects, projectScope, setProjectScope, loading } = useBugTracker();
   const [range, setRange] = useState('all');
   const base = portalBase();
 
+  // Compute derived data unconditionally (hooks must be called unconditionally)
   const issues = useMemo(() => {
     if (range === 'all') return scopedIssues;
     const from = format(subDays(new Date(), Number(range)), 'yyyy-MM-dd');
@@ -37,11 +38,62 @@ export function Overview() {
   const metrics = computeIssueMetrics(issues, currentUser.id);
   const openIssues = issues.filter((i) => isOpenStatus(i.status));
 
+  // Show loading skeleton while data is being fetched
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 sm:px-6">
+        <PageHeader
+          title={`Good morning, ${currentUser?.name?.split(' ')[0] ?? '...'}`}
+          description="Loading issue metrics..."
+        />
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-3 space-y-5">
+            <div className="animate-pulse space-y-4">
+              <div className="group flex flex-col justify-between gap-4 border-b border-line p-5 lg:border-b-0 lg:border-r">
+                <div className="flex items-center justify-between">
+                  <div className="h-3 w-24 bg-neutral-soft rounded animate-pulse" />
+                  <div className="h-4 w-4 bg-neutral-soft rounded animate-pulse" />
+                </div>
+                <div className="h-8 w-32 bg-neutral-soft rounded animate-pulse" />
+                <p className="mt-1 text-[13px] text-ink-subtle">
+                  <span className="h-3 w-24 bg-neutral-soft rounded animate-pulse" />
+                </p>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-soft">
+                  <div className="h-full rounded-full bg-accent animate-pulse" style={{ width: '30%' }} />
+                </div>
+              </div>
+              <ul className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3 xl:grid-cols-6">
+                {[1,2,3,4,5,6].map((i) => (
+                  <li key={i} className="bg-surface animate-pulse">
+                    <div className="flex h-full flex-col justify-between gap-3 p-4">
+                      <div className="h-3 w-20 bg-neutral-soft rounded animate-pulse" />
+                      <div className="h-8 w-16 bg-neutral-soft rounded animate-pulse" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-3 space-y-5">
+            {[1,2,3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-5 w-48 bg-neutral-soft rounded mb-3 animate-pulse" />
+                <div className="h-64 bg-neutral-soft rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 sm:px-6">
       <PageHeader
         title={`Good morning, ${currentUser.name.split(' ')[0]}`}
-        description="Here’s where issues stand across your Workforce projects."
+        description="Here's where issues stand across your Workforce projects."
         actions={
         <>
             <SelectField
@@ -61,7 +113,6 @@ export function Overview() {
           </>
         } />
       
-
       <MetricOverview metrics={metrics} />
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -91,5 +142,4 @@ export function Overview() {
         </Panel>
       </div>
     </div>);
-
 }
