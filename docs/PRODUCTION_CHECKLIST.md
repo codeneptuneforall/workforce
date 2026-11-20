@@ -110,4 +110,6 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
 
 | Date | Item | Branch / PR | Notes |
 |------|------|-------------|-------|
-|      |      |             |       |
+| 2026-11-20 | 1. `/api/state` from cache | `fix/production-stability` @ a2b3d36 | Committed. Typecheck passes. Awaiting local test + Render memory check. |
+| 2026-11-20 | 2. Close idle Chromium | `fix/production-stability` @ 74ddbdf | Committed. Typecheck passes. Awaiting local test + Render memory check. |
+| 2026-11-20 | 3. Compiled JS instead of tsx | `fix/production-stability` | esbuild bundle `dist/server/index.js`; booted locally, `/api/health` OK. Awaiting Render deploy. Follow-up: add `esbuild` as an explicit devDependency (now comes via tsx). Pre-existing: Mongoose warns of a duplicate index on `{employeeId, date}`. |

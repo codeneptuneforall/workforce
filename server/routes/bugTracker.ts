@@ -3,7 +3,7 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { projectRoot } from '../paths';
 import { requireAuth } from '../auth';
 import type { AuthUser } from '../../shared/types';
 import { io } from '../socket';
@@ -199,9 +199,7 @@ async function createBtNotification(recipientId: string, title: string, body: st
 
 /** Attachment storage (not publicly served) */
 
-const dir = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(dir, "../../");
-const btUploadDir = path.resolve(root, "uploads/bug-tracker");
+const btUploadDir = path.resolve(projectRoot, "uploads/bug-tracker");
 if (!fs.existsSync(btUploadDir)) fs.mkdirSync(btUploadDir, { recursive: true });
 
 const btStorage = multer.diskStorage({

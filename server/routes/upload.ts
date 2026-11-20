@@ -2,12 +2,10 @@
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
+import { projectRoot } from "../paths";
 
 const router = express.Router();
-const dir = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(dir, "../../");
-const uploadDir = path.resolve(root, "uploads/profiles");
+const uploadDir = path.resolve(projectRoot, "uploads/profiles");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 // Use memory storage so we can convert the file to a base64 data URL

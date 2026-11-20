@@ -1,5 +1,4 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -17,9 +16,9 @@ import { startAutoSubmitCron } from './cron/autoSubmitTimesheets';
 import { startAutoPauseCron } from './cron/autoPauseBreaks';
 import { disposePdfBrowser } from './pdfBrowser';
 import { migrateWfhHistory } from './migrate-wfh-history';
+import { projectRoot } from './paths';
 
-const dir = path.dirname(fileURLToPath(import.meta.url));
-const clientDir = path.resolve(dir, '../dist/client');
+const clientDir = path.join(projectRoot, 'dist/client');
 
 const app = express();
 const httpServer = createServer(app);
@@ -82,7 +81,7 @@ app.use('/api/auth/reset-password', loginLimiter);
 app.use('/api', attachUser);
 app.use('/api/auth', authRouter);
 app.use('/api/upload', uploadRouter);
-app.use('/uploads', express.static(path.resolve(dir, '../uploads')));
+app.use('/uploads', express.static(path.join(projectRoot, 'uploads')));
 // Bug Tracker status endpoint is always available (even when disabled).
 app.use('/api/bug-tracker/status', (_req, res) => {
   res.json({ enabled: config.bugTrackerEnabled });
