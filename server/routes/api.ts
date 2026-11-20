@@ -9,6 +9,7 @@ import { EmployeeModel, UserModel, PayslipModel, WfhHistoryModel } from '../mode
 import { ensureLoaded, persistDiff, setCachedState, invalidateCache } from '../store';
 import { config } from '../config';
 import { withPdfBrowser } from '../pdfBrowser';
+import { presentEmployeePhotos, protectEmployeePhotos } from '../storage/employeePhotos';
 import { monthLabel } from '../../shared/domain/payroll';
 import * as XLSX from 'xlsx';
 
@@ -36,7 +37,7 @@ apiRouter.get('/state', requireAuth, requirePasswordChanged, async (req, res) =>
     // whole database on each call; now a full read happens at most once per TTL.
     // Serialised so it never runs concurrently with a mutation.
     const state = await serialise(() => ensureLoaded());
-    res.json({ state: projectState(state, req.user!) });
+    res.json({ state: presentEmployeePhotos(projectState(state, req.user!)) });
   } catch (error) {
     console.error('[state] load failed:', error instanceof Error ? error.message : error);
     if (!res.headersSent) res.status(503).json({ error: 'State is temporarily unavailable. Please retry.' });
@@ -702,8 +703,10 @@ apiRouter.post('/state/mutate', requireAuth, requirePasswordChanged, async (req,
     type Outcome = { error: string } | { state: AppState; credentials?: Credentials };
     const outcome = await serialise<Outcome>(async () => {
       const current = await ensureLoaded();
-      const result = runCommand(op, { state: current, user: req.user!, actor: req.user!.name, now: Date.now() }, args);
-      if ('error' in result) return { error: result.error };
+      const commandResult = runCommand(op, { state: current, user: req.user!, actor: req.user!.name, now: Date.now() }, args);
+      if ('error' in commandResult) return { error: commandResult.error };
+      // Uploaded photo paths are server-owned; built photo URLs sent back are not stored.
+      const result = protectEmployeePhotos(current, commandResult);
       await persistDiff(current, result);
       setCachedState(result);
       const sideEffects = await applyAccountSideEffects(op, args, current, result);
@@ -715,7 +718,7 @@ apiRouter.post('/state/mutate', requireAuth, requirePasswordChanged, async (req,
       return;
     }
     res.json({
-      state: projectState(outcome.state, req.user!),
+      state: presentEmployeePhotos(projectState(outcome.state, req.user!)),
       ...(outcome.credentials ? { credentials: outcome.credentials } : {})
     });
   } catch (err) {

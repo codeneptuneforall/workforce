@@ -89,7 +89,8 @@ app.use('/api/auth/reset-password', loginLimiter);
 app.use('/api', attachUser);
 app.use('/api/auth', authRouter);
 app.use('/api/upload', uploadRouter);
-app.use('/uploads', express.static(path.join(projectRoot, 'uploads')));
+// Files live in Cloudinary now. The local uploads/ folder is no longer served: it held
+// bug tracker attachments, which must only be reachable through the permission check.
 // Bug Tracker status endpoint is always available (even when disabled).
 app.use('/api/bug-tracker/status', (_req, res) => {
   res.json({ enabled: config.bugTrackerEnabled });

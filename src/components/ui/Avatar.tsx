@@ -1,5 +1,9 @@
 ﻿import { useState } from "react";
 import { cn } from "../../utils/cn";
+import { cloudinaryThumb } from "../../utils/cloudinary";
+
+/** Rendered avatar diameter in px (h-7 / h-9 / h-14), used to request a right-sized photo. */
+const AVATAR_PX = { sm: 28, md: 36, lg: 56 } as const;
 
 export function Avatar({
   name,
@@ -15,7 +19,7 @@ export function Avatar({
     lg: 'h-14 w-14 text-base'
   }[size];
   if (src && !broken) {
-    return <img src={src} alt={name} onError={() => setBroken(true)} className={cn('inline-flex shrink-0 items-center justify-center rounded-full object-cover bg-brand-100', s, className)} />;
+    return <img src={cloudinaryThumb(src, AVATAR_PX[size])} alt={name} onError={() => setBroken(true)} className={cn('inline-flex shrink-0 items-center justify-center rounded-full object-cover bg-brand-100', s, className)} />;
   }
   return <span className={cn('inline-flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-800', s, className)} aria-hidden>{initials}</span>;
 }

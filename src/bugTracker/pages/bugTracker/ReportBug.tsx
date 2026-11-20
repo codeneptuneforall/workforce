@@ -15,7 +15,7 @@ import { useIssueForm } from '../../hooks/useIssueForm';
 import type { Issue } from '../../types/bugTracker';
 
 export function ReportBug() {
-  const { createIssue, projectScope, getEmployee, getProject } = useBugTracker();
+  const { createIssue, uploadAttachments, projectScope, getEmployee, getProject } = useBugTracker();
   const navigate = useNavigate();
   const base = portalBase();
   const initialProject = projectScope === 'all' ? '' : projectScope;
@@ -33,19 +33,31 @@ export function ReportBug() {
       return;
     }
     setSubmitting(true);
+    // Files need the issue key for their storage folder, so the issue is created
+    // first and the picked files are uploaded to it straight after.
+    const pendingFiles = form.draft.attachments;
     let issue: Issue | null = null;
     try {
-      issue = await createIssue(form.draft);
+      issue = await createIssue({ ...form.draft, attachments: [] });
     } catch (err: any) {
       setSubmitting(false);
       toast.error(err.message || 'Failed to report the issue. Please try again.');
       return;
     }
     if (!issue) {
+      setSubmitting(false);
       toast.error('Failed to report the issue. Please try again.');
       return;
     }
-    setCreated(issue);
+    if (pendingFiles.length) {
+      const { failed } = await uploadAttachments(issue.key, pendingFiles);
+      if (failed.length) {
+        toast.error(`${issue.key} was reported, but ${failed.length} file${failed.length > 1 ? 's' : ''} could not be attached`, {
+          description: `${failed.join(', ')}. Open the issue and use "Attach file" to try again.`,
+          duration: 10000
+        });
+      }
+    }
     setCreated(issue);
     toast.success(`${issue.key} added to the tracker`, { description: 'Stored in the Workforce database.' });
   };

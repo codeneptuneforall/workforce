@@ -22,11 +22,6 @@ export default defineConfig({
         target: process.env.API_ORIGIN ?? 'http://localhost:4000',
         changeOrigin: true,
       },
-      // Uploaded profile pictures are served as static files from the API server.
-      '/uploads': {
-        target: process.env.API_ORIGIN ?? 'http://localhost:4000',
-        changeOrigin: true,
-      },
     },
   },
   build: {

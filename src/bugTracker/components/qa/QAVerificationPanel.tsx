@@ -134,13 +134,14 @@ export function QAVerificationPanel({ issue, onOutcome }: QAVerificationPanelPro
             className="sr-only"
             aria-label="Attach evidence"
             onChange={async (e) => {
-              const { accepted, rejected } = await filesToAttachments(Array.from(e.target.files ?? []), currentUser.id);
-              if (accepted.length) {
-                addAttachments(issue.id, accepted);
-                toast.success(`${accepted.length} evidence file${accepted.length > 1 ? 's' : ''} attached`);
-              }
+              const input = e.target;
+              const { accepted, rejected } = await filesToAttachments(Array.from(input.files ?? []), currentUser.id);
+              input.value = '';
               if (rejected.length) toast.error(`Too large: ${rejected.join(', ')}`);
-              e.target.value = '';
+              if (!accepted.length) return;
+              const { uploaded, failed } = await addAttachments(issue.id, accepted);
+              if (uploaded) toast.success(`${uploaded} evidence file${uploaded > 1 ? 's' : ''} attached`);
+              if (failed.length) toast.error(`Could not attach: ${failed.join(', ')}. Please try again.`);
             }} />
           
           </div>
