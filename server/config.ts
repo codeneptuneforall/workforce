@@ -27,12 +27,12 @@ export const config = {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
-  seedAdminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@codeneptune.in',
-  seedAdminPassword: process.env.SEED_ADMIN_PASSWORD ?? 'Admin@12345',
+  seedAdminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com',
+  seedAdminPassword: process.env.SEED_ADMIN_PASSWORD ?? '',
   /** A second management login with its own password and no forced change. */
-  seedManagerEmail: process.env.SEED_MANAGER_EMAIL ?? 'info@codeneptune.com',
-  seedManagerPassword: process.env.SEED_MANAGER_PASSWORD ?? 'CodeNeptune',
-  seedDefaultPassword: process.env.SEED_DEFAULT_PASSWORD ?? 'Welcome@123',
+  seedManagerEmail: process.env.SEED_MANAGER_EMAIL ?? 'manager@example.com',
+  seedManagerPassword: process.env.SEED_MANAGER_PASSWORD ?? '',
+  seedDefaultPassword: process.env.SEED_DEFAULT_PASSWORD ?? '',
   /** Serve the built client from the API server (single-origin production deployment). */
   serveClient: process.env.SERVE_CLIENT !== 'false',
   /** Enable the integrated Bug Tracker module. Defaults to enabled. */

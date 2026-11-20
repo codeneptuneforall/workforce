@@ -221,30 +221,30 @@ state — the same figures for the screen, the reports and any future export.
 ---
 
 ## Default accounts
-
+ 
 A clean install has exactly two logins, both management:
-
+ 
 | Account | Email | Password | Notes |
 | --- | --- | --- | --- |
-| Administrator | `admin@codeneptune.in` | `Admin@12345` | Full access incl. payroll; password already final |
-| Management (company inbox) | `info@codeneptune.com` | `CodeNeptune` | Full access incl. payroll; password already final |
-
+| Administrator | `admin@example.com` | (set via SEED_ADMIN_PASSWORD) | Full access incl. payroll; password already final |
+| Management (company inbox) | `manager@example.com` | (set via SEED_MANAGER_PASSWORD) | Full access incl. payroll; password already final |
+ 
 `npm run seed -- --demo` additionally creates the sample staff logins — HR & Payroll
 Manager (`neha.kapoor@…`), Engineering Manager (`arjun.mehta@…`), and one employee
 account per sample person (`priya.sharma@…`, `rahul.verma@…`, `ananya.iyer@…`,
 `karthik.reddy@…`, `sneha.nair@…`, `vikram.singh@…`, `meera.pillai@…`) — all on
-`Welcome@123` and flagged `mustChangePassword`.
-
+`SEED_DEFAULT_PASSWORD` and flagged `mustChangePassword`.
+ 
 Every account except the administrator and the management inbox is flagged
 `mustChangePassword`, so the first sign-in routes to a change-password screen before any
 other page is reachable. The administrator and management passwords come from
 `SEED_ADMIN_PASSWORD` / `SEED_MANAGER_PASSWORD` and are not forced to change.
-
+ 
 Employee accounts created in the app are **not** given a shared default password: each one
 gets a random, policy-compliant temporary password that management sees once. Change
 `SEED_ADMIN_PASSWORD` and `SEED_MANAGER_PASSWORD` in `.env` **before** the first seed if the
 install is shared with anyone; `SEED_DEFAULT_PASSWORD` only affects `--demo` accounts.
-
+ 
 ---
 
 ## Scripts
@@ -296,11 +296,11 @@ Copy `.env.example` to `.env`. Every value has a development default, so only
 | `PORT` | `4000` | API port |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Allowed browser origin(s) for CORS and reset links. Comma-separated list; the API's own origin is always allowed |
 | `SERVE_CLIENT` | `true` | Serve `dist/client` from the API server |
-| `SEED_ADMIN_EMAIL` | `admin@codeneptune.in` | Administrator email created by the seed |
-| `SEED_ADMIN_PASSWORD` | `Admin@12345` | Administrator password created by the seed |
-| `SEED_MANAGER_EMAIL` | `info@codeneptune.com` | Second management login created by the seed |
-| `SEED_MANAGER_PASSWORD` | `CodeNeptune` | Password for that management login |
-| `SEED_DEFAULT_PASSWORD` | `Welcome@123` | Password for the sample staff accounts created by `--demo`; new employee accounts get generated passwords |
+| `SEED_ADMIN_EMAIL` | `admin@example.com` | Administrator email created by the seed |
+| `SEED_ADMIN_PASSWORD` | (set via SEED_ADMIN_PASSWORD) | Administrator password created by the seed |
+| `SEED_MANAGER_EMAIL` | `manager@example.com` | Second management login created by the seed |
+| `SEED_MANAGER_PASSWORD` | (set via SEED_MANAGER_PASSWORD) | Password for that management login |
+| `SEED_DEFAULT_PASSWORD` | (set via SEED_DEFAULT_PASSWORD) | Password for the sample staff accounts created by `--demo`; new employee accounts get generated passwords |
 | `RESET_TOKEN_TTL_MINUTES` | `30` | Password-reset link lifetime |
 
 `API_ORIGIN` can also be set for the Vite dev server to proxy `/api` somewhere other than

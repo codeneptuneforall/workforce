@@ -8,7 +8,7 @@ export const users: SeedUser[] = [
 {
   id: 'u-neha',
   name: 'Neha Kapoor',
-  email: 'neha.kapoor@codeneptune.in',
+  email: 'neha.kapoor@example.com',
   role: 'management',
   title: 'HR & Payroll Manager',
   canManagePayroll: true
@@ -16,7 +16,7 @@ export const users: SeedUser[] = [
 {
   id: 'u-arjun',
   name: 'Arjun Mehta',
-  email: 'arjun.mehta@codeneptune.in',
+  email: 'arjun.mehta@example.com',
   role: 'management',
   title: 'Engineering Manager',
   canManagePayroll: true
@@ -24,7 +24,7 @@ export const users: SeedUser[] = [
 {
   id: 'u-priya',
   name: 'Priya Sharma',
-  email: 'priya.sharma@codeneptune.in',
+  email: 'priya.sharma@example.com',
   role: 'employee',
   title: 'Frontend Developer',
   employeeId: 'e1',
@@ -33,7 +33,7 @@ export const users: SeedUser[] = [
 {
   id: 'u-rahul',
   name: 'Rahul Verma',
-  email: 'rahul.verma@codeneptune.in',
+  email: 'rahul.verma@example.com',
   role: 'employee',
   title: 'Senior Backend Developer',
   employeeId: 'e2',
