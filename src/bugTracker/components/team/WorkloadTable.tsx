@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
 import { workloadCapacity } from '../../data/trackerConfig';
-import type { Employee, Issue } from '../../types/bugTracker';
+import type { Employee, IssueBase } from '../../types/bugTracker';
 import { isOverdue } from '../../utils/issueMetrics';
 import { statusStyles } from '../../utils/issueStyles';
 import { isOpenStatus } from '../../utils/workflow';
@@ -16,8 +16,8 @@ import { Button } from '../ui/Button';
 
 interface WorkloadTableProps {
   members: Employee[];
-  issues: Issue[];
-  onReassign: (issue: Issue) => void;
+  issues: IssueBase[];
+  onReassign: (issue: IssueBase) => void;
 }
 
 const segments = [

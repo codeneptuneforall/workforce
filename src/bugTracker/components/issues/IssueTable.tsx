@@ -3,7 +3,7 @@ import { ArrowDownIcon, ArrowUpIcon, ArrowUpDownIcon, BanIcon } from 'lucide-rea
 import { useNavigate } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
-import type { Issue, SortKey, SortState } from '../../types/bugTracker';
+import type { IssueBase, SortKey, SortState } from '../../types/bugTracker';
 import { formatDate } from '../../utils/dates';
 import { DueDateLabel } from '../badges/DueDateLabel';
 import { IssueStatusBadge } from '../badges/IssueStatusBadge';
@@ -12,7 +12,7 @@ import { SeverityBadge } from '../badges/SeverityBadge';
 import { Avatar } from '../ui/Avatar';
 
 interface IssueTableProps {
-  issues: Issue[];
+  issues: IssueBase[];
   sort: SortState;
   onSort: (key: SortKey) => void;
 }

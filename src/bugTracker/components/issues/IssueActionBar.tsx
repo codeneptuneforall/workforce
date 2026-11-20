@@ -2,13 +2,13 @@ import React, { useCallback, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDownIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { statusStyles } from '../../utils/issueStyles';
 import type { WorkflowTransition } from '../../utils/workflow';
 import { Button } from '../ui/Button';
 
 interface IssueActionBarProps {
-  issue: Issue;
+  issue: IssueBase;
   transitions: WorkflowTransition[];
   canEdit: boolean;
   canAssign: boolean;

@@ -84,7 +84,7 @@ export function Reports() {
   const avgResolutionDays = resolvedIssues.length
     ? (resolvedIssues.reduce((acc, i) => {
         const created = new Date(i.createdAt).getTime();
-        const resolved = new Date((i as any).resolution?.resolvedAt || i.updatedAt).getTime();
+        const resolved = new Date(i.resolvedAt || i.updatedAt).getTime();
         return acc + Math.max(0, (resolved - created) / 86400000);
       }, 0) / resolvedIssues.length).toFixed(1)
     : '—';

@@ -66,6 +66,25 @@ Run `npx tsc --noEmit`. Every remaining read of `.comments`, `.activity`,
 `.attachments`, `.description`, etc. on a list item is now a type error. Fix each one
 (move it to `useFullIssue` or a derived field) — do **not** cast to `any`.
 
+## As implemented
+
+- **Types:** `HeavyIssueField`, `IssueBase = Omit<Issue, HeavyIssueField>`,
+  `IssueSummaryFields`, `IssueSummary = IssueBase & IssueSummaryFields`.
+  `fixSummary` stays a light field (small; `TransitionDialog` pre-fills the
+  submit-for-QA note from list items on Kanban / My Issues).
+- **Server `toApiIssue`** adds the derived fields to every issue it sends (list,
+  detail, mutation responses, socket events).
+- **Client `utils/issueSummary.ts` → `toIssueSummary()`** is applied to the list
+  fetch, every mutation response and every socket payload, and **strips heavy
+  fields** — so the client already behaves as it will after step 6.
+- `attachmentPreview` = first 3 **image** attachments (the Kanban card only ever
+  showed image thumbnails); `+N` badge uses `attachmentCount`.
+- **Comments:** a ref-tracked set of counted comment ids makes the local
+  `addComment` bump and the `issue:commented` socket bump idempotent; the
+  `issue:updated` event that follows carries exact server counts.
+- ~20 light-only components / hooks / utils switched from `Issue` to `IssueBase`;
+  Kanban components to `IssueSummary`. No `as any` reads of heavy fields remain.
+
 ## Verify
 
 - `tsc` clean.

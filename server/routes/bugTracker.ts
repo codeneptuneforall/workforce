@@ -278,11 +278,29 @@ const uploadLimiter = rateLimit({
   message: { error: 'Too many uploads. Please slow down.' }
 });
 
-/** Normalize a Mongoose lean issue document into the frontend contract (id = _id). */
+/** Number of attachments included in list summaries (Kanban card thumbnails). */
+const ATTACHMENT_PREVIEW_COUNT = 3;
+
+/**
+ * Normalize a Mongoose lean issue document into the frontend contract (id = _id)
+ * and add the summary fields the issue list relies on:
+ * commentCount, commentAuthorIds, attachmentCount, attachmentPreview, resolvedAt.
+ * Docs that already carry them (from the list aggregation) are left as is.
+ */
 function toApiIssue(doc: any): any {
   if (!doc) return doc;
   const out = { ...doc };
   if (out._id !== undefined && out.id === undefined) out.id = out._id;
+  if (Array.isArray(out.comments)) {
+    out.commentCount = out.comments.length;
+    out.commentAuthorIds = [...new Set(out.comments.map((c: any) => c.authorId))];
+  }
+  if (Array.isArray(out.attachments)) {
+    out.attachmentCount = out.attachments.length;
+    // First few *image* attachments — what the Kanban card renders as thumbnails.
+    out.attachmentPreview = out.attachments.filter((a: any) => a.kind === 'image').slice(0, ATTACHMENT_PREVIEW_COUNT);
+  }
+  if (out.resolvedAt === undefined) out.resolvedAt = out.resolution?.resolvedAt ?? null;
   return out;
 }
 
@@ -371,7 +389,16 @@ bugTrackerRouter.get('/issues/:key', readLimiter, async (_req, res) => {
   const context = await getBugTrackerContext(_req.user!);
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
   const { role: userRole, id: btId } = context;
-  if (!canViewIssue(userRole, btId, issue)) {
+  // Same rule as the issue list: anything the list shows a user (including
+  // issues in their Workforce projects) must also open in Issue Detail, which
+  // always loads through this endpoint.
+  let allowed = canViewIssue(userRole, btId, issue);
+  if (!allowed) {
+    const visibility = await issueVisibilityMatch(_req.user!, context);
+    allowed = Object.keys(visibility).length === 0 ||
+      (await BugTrackerIssueModel.exists({ $and: [{ key: issue.key }, visibility] })) !== null;
+  }
+  if (!allowed) {
     res.status(403).json({ error: 'You do not have permission to view this issue.' }); return;
   }
   res.json({ issue: toApiIssue(issue) });

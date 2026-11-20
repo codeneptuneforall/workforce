@@ -6,7 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueSummary } from '../../types/bugTracker';
 import { daysFromToday } from '../../utils/dates';
 import { isOverdue } from '../../utils/issueMetrics';
 import { severityRank } from '../../utils/issueStyles';
@@ -27,10 +27,10 @@ export function MyIssues() {
   const { startTransition, dialogs } = useIssueTransition();
   const [tab, setTab] = useState<TabId>(currentUser.role === 'reporter' ? 'reported' : currentUser.role === 'qa' ? 'qa' : 'assigned');
 
-  const involved = (i: Issue) => i.assigneeId === currentUser.id || i.reporterId === currentUser.id || i.comments.some((c) => c.authorId === currentUser.id);
+  const involved = (i: IssueSummary) => i.assigneeId === currentUser.id || i.reporterId === currentUser.id || i.commentAuthorIds.includes(currentUser.id);
 
   const lists = useMemo(() => {
-    const bySeverity = (a: Issue, b: Issue) => severityRank[a.severity] - severityRank[b.severity];
+    const bySeverity = (a: IssueSummary, b: IssueSummary) => severityRank[a.severity] - severityRank[b.severity];
     return {
       assigned: scopedIssues.filter((i) => i.assigneeId === currentUser.id && isOpenStatus(i.status)).sort(bySeverity),
       reported: scopedIssues.filter((i) => i.reporterId === currentUser.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),

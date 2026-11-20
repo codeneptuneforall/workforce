@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBugTracker } from '../contexts/BugTrackerContext';
-import type { Issue, IssueFilterState, SortKey, SortState } from '../types/bugTracker';
+import type { IssueBase, IssueFilterState, SortKey, SortState } from '../types/bugTracker';
 import { emptyFilters, filterIssues, sortIssues } from '../utils/issueFilters';
 
-export function useIssueTable(issues: Issue[], initial: Partial<IssueFilterState> = {}, pageSize = 10) {
+export function useIssueTable(issues: IssueBase[], initial: Partial<IssueFilterState> = {}, pageSize = 10) {
   const { currentUser, getEmployee, getProject } = useBugTracker();
   const [filters, setFilters] = useState<IssueFilterState>({ ...emptyFilters, ...initial });
   const [sort, setSort] = useState<SortState>({ key: 'createdAt', direction: 'desc' });

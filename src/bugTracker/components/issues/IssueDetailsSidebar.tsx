@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes, portalBase } from '../../data/navigation';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { formatDate, formatDateTime } from '../../utils/dates';
 import { dueLabel } from '../../utils/issueMetrics';
 import { IssueStatusBadge } from '../badges/IssueStatusBadge';
@@ -18,7 +18,7 @@ const qaTone: Record<string, string> = {
   Failed: 'text-danger-ink'
 };
 
-export function IssueDetailsSidebar({ issue }: {issue: Issue;}) {
+export function IssueDetailsSidebar({ issue }: {issue: IssueBase;}) {
   const { getEmployee, getProject, getIssueByKey } = useBugTracker();
   const assignee = getEmployee(issue.assigneeId);
   const reporter = getEmployee(issue.reporterId);

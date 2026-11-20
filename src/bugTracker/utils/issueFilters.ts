@@ -1,4 +1,4 @@
-import type { Issue, IssueFilterState, IssuePreset, SortState } from '../types/bugTracker';
+import type { IssueBase, IssueFilterState, IssuePreset, SortState } from '../types/bugTracker';
 import { isOverdue } from './issueMetrics';
 import { priorityRank, severityRank } from './issueStyles';
 import { ALL_STATUSES, isOpenStatus, QA_STATUSES } from './workflow';
@@ -27,7 +27,7 @@ export const presetLabels: Record<Exclude<IssuePreset, ''>, string> = {
   mine: 'Assigned to me'
 };
 
-function matchesPreset(issue: Issue, preset: IssuePreset, userId: string): boolean {
+function matchesPreset(issue: IssueBase, preset: IssuePreset, userId: string): boolean {
   switch (preset) {
     case 'open':
       return isOpenStatus(issue.status);
@@ -48,7 +48,7 @@ function matchesPreset(issue: Issue, preset: IssuePreset, userId: string): boole
   }
 }
 
-export function filterIssues(list: Issue[], f: IssueFilterState, userId: string): Issue[] {
+export function filterIssues(list: IssueBase[], f: IssueFilterState, userId: string): IssueBase[] {
   const query = f.search.trim().toLowerCase();
   return list.filter((issue) => {
     if (query) {
@@ -76,9 +76,9 @@ interface SortLookups {
   projectName: (id: string) => string;
 }
 
-export function sortIssues(list: Issue[], sort: SortState, lookups: SortLookups): Issue[] {
+export function sortIssues(list: IssueBase[], sort: SortState, lookups: SortLookups): IssueBase[] {
   const dir = sort.direction === 'asc' ? 1 : -1;
-  const value = (issue: Issue): string | number => {
+  const value = (issue: IssueBase): string | number => {
     switch (sort.key) {
       case 'key':
         return parseInt(issue.key.replace(/\D/g, ''), 10);
