@@ -304,6 +304,45 @@ function toApiIssue(doc: any): any {
   return out;
 }
 
+/** Fields only sent with the full issue (GET /issues/:key, mutation responses). */
+const HEAVY_ISSUE_FIELDS = [
+  'description', 'stepsToReproduce', 'expectedResult', 'actualResult',
+  'attachments', 'comments', 'activity', 'resolution'
+] as const;
+
+/**
+ * List-summary form of an issue: toApiIssue() derived fields, heavy fields removed.
+ * Used for socket broadcasts so every connected client gets only what the
+ * shared issue list needs.
+ */
+function toIssueSummary(doc: any): any {
+  const out = toApiIssue(doc);
+  if (!out) return out;
+  for (const field of HEAVY_ISSUE_FIELDS) delete out[field];
+  return out;
+}
+
+/**
+ * Aggregation $project for GET /issues: light fields plus derived summary
+ * fields computed in MongoDB, so heavy arrays never leave the database.
+ */
+const ISSUE_SUMMARY_PROJECTION = {
+  key: 1, title: 1, projectId: 1, type: 1, severity: 1, priority: 1, status: 1,
+  assigneeId: 1, reporterId: 1, createdAt: 1, updatedAt: 1, dueDate: 1,
+  feature: 1, environment: 1, labels: 1, relatedIssueKeys: 1, blocked: 1,
+  blockedReason: 1, submittedForQaAt: 1, fixSummary: 1, reopenReason: 1, qa: 1,
+  commentCount: { $size: { $ifNull: ['$comments', []] } },
+  commentAuthorIds: { $setUnion: [{ $ifNull: ['$comments.authorId', []] }, []] },
+  attachmentCount: { $size: { $ifNull: ['$attachments', []] } },
+  attachmentPreview: {
+    $slice: [
+      { $filter: { input: { $ifNull: ['$attachments', []] }, as: 'a', cond: { $eq: ['$$a.kind', 'image'] } } },
+      ATTACHMENT_PREVIEW_COUNT
+    ]
+  },
+  resolvedAt: { $ifNull: ['$resolution.resolvedAt', null] }
+};
+
 /**
  * MongoDB filter for the issues a user may see in lists and feeds.
  * admin / qa: everything. Others: issues they are assigned to or reported, plus
@@ -339,7 +378,15 @@ bugTrackerRouter.get('/issues', readLimiter, async (_req, res) => {
   // Visibility is applied in the query, so invisible issues are never loaded.
   const visibility = await issueVisibilityMatch(_req.user!, context);
   const query = Object.keys(visibility).length ? { $and: [filter, visibility] } : filter;
-  const issues = await BugTrackerIssueModel.find(query).sort({ updatedAt: -1 }).lean();
+
+  // Summary list: heavy fields (description, steps, comments, activity,
+  // attachments, resolution) never leave MongoDB — the derived summary fields
+  // are computed in the projection. Full issues come from GET /issues/:key.
+  const issues = await BugTrackerIssueModel.aggregate([
+    { $match: query },
+    { $sort: { updatedAt: -1 } },
+    { $project: ISSUE_SUMMARY_PROJECTION }
+  ]);
 
   res.json({ issues: issues.map(toApiIssue) });
 });
@@ -459,7 +506,7 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
   }
 
   res.status(201).json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:created', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:created', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Update an issue field(s) � edit permission checked server-side. */
@@ -503,7 +550,7 @@ bugTrackerRouter.patch('/issues/:key', issueLimiter, async (_req, res) => {
   }
 
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Workflow transition � role and state validated server-side. */
@@ -598,7 +645,7 @@ bugTrackerRouter.post('/issues/:key/transition', issueLimiter, async (_req, res)
   }
 
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:transitioned', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:transitioned', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Add a comment � any authenticated user may comment on a visible issue. */
@@ -634,8 +681,8 @@ bugTrackerRouter.post('/issues/:key/comments', commentLimiter, async (_req, res)
   }
 
   res.status(201).json({ comment });
-  io.emit('issue:commented', { issueKey: _req.params.key, comment });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:commented', { issueKey: _req.params.key, comment: { id: comment.id, authorId: comment.authorId, createdAt: comment.createdAt } });
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Delete an issue � admin, manager, or the reporter can delete their own issue. */
@@ -672,7 +719,7 @@ bugTrackerRouter.post('/issues/:key/attachments', uploadLimiter, async (_req, re
   issue.updatedAt = new Date().toISOString();
   await issue.save();
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Upload a file attachment to an issue (multipart). */
@@ -712,7 +759,7 @@ bugTrackerRouter.post('/issues/:key/attachments/upload', uploadLimiter, btUpload
   try { await writeAuditEntry(_req.user!, 'Attachment uploaded', 'BugTrackerIssue', issue.key, undefined, file.originalname); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
 
   res.status(201).json({ attachment });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Download/preview a file attachment � authenticated, authorization-checked.

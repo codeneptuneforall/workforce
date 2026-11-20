@@ -48,6 +48,23 @@ send `toIssueSummary(doc)` instead of the full doc. `issue:commented` can send
 `POST/PATCH /issues…` can keep returning the **full** issue — the client converts it
 to a summary for the list (step 5) and the detail page refetches anyway.
 
+## As implemented
+
+- `GET /issues` = aggregation `$match` (filters + visibility) → `$sort updatedAt` →
+  `$project ISSUE_SUMMARY_PROJECTION`. Derived fields computed in MongoDB;
+  `attachmentPreview` = first 3 **image** attachments (matches the Kanban card).
+  `fixSummary` stays in the projection (light; used by TransitionDialog).
+- New `toIssueSummary()` (server) = `toApiIssue()` + heavy fields removed; used for
+  `issue:created` / `issue:updated` / `issue:transitioned` broadcasts.
+- `issue:commented` now broadcasts only `{ id, authorId, createdAt }` of the comment
+  — previously the comment **body** was broadcast to every connected socket,
+  regardless of who can see the issue.
+- Mutation responses (`POST/PATCH/transition/attachments`) still return the full
+  issue; the client reduces them with `toIssueSummary()` (step 5).
+- Note: socket broadcasts still go to all connected clients (pre-existing); the
+  summary still contains title/status/etc. Scoping broadcasts per user is out of
+  scope here.
+
 ## Verify
 
 - Network: `GET /issues` response size drops sharply (compare before/after; note both
