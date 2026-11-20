@@ -38,7 +38,7 @@ stop depending on heavy list fields **before** the list stops sending them.
 
 - [x] Step 1 — implemented 2026-11-20 (awaiting manual verification)
 - [x] Step 2 — implemented 2026-11-20 (awaiting manual verification)
-- [ ] Step 3
+- [x] Step 3 — implemented 2026-11-20 (awaiting manual verification)
 - [ ] Step 4
 - [ ] Step 5
 - [ ] Step 6

@@ -50,6 +50,19 @@ Takes the full issue from props (already does). After posting, call the parent's
   to `QAVerificationPanel` (reads `attachments`, `stepsToReproduce`,
   `expectedResult`, `fixSummary`). Skeleton while loading.
 
+## As implemented
+
+- `useFullIssue` refetches whenever the list copy's `updatedAt` changes. Every
+  server mutation (edit, transition, comment, attachments JSON + upload) bumps
+  `updatedAt` and emits `issue:updated`, so no explicit `refresh()` calls were
+  needed in IssueDetail / IssueComments / transitions.
+- A failed background refetch keeps the already-loaded data if the issue is still
+  in the list (avoids flipping to "not found" on a 429 / network blip).
+- IssueDetail shows a skeleton until the full issue loads (no partial header-only
+  render — single-issue fetch is fast).
+- QAVerification: queue from the list; the selected item's panel uses the full
+  issue, with a skeleton while loading and an empty state if it can't be loaded.
+
 ## Verify
 
 - Open an issue → Network shows `GET /issues/WF-xxx`; description, steps, attachments,
