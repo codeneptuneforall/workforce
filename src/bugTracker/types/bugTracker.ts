@@ -47,9 +47,14 @@ export interface Attachment {
   fileName?: string; // on-disk filename for server-stored attachments (fallback preview)
   sizeKb: number;
   kind: 'image' | 'document' | 'log';
-  previewUrl?: string; // base64 data URL for client-uploaded images, or server download URL
+  /** Signed Cloudinary URL (stored files), or a legacy base64 data URL / server download URL. */
+  previewUrl?: string;
   uploadedById: string;
   uploadedAt: string;
+  /** Set by the server when the file is stored in Cloudinary. */
+  stored?: boolean;
+  /** Client-only: a picked file not uploaded yet (never sent as JSON). */
+  file?: File;
 }
 
 export type CommentKind = 'comment' | 'test-note' | 'clarification' | 'qa-fail' | 'qa-pass' | 'reopen';

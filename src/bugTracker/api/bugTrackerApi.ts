@@ -95,6 +95,23 @@ export const bugTrackerApi = {
       body: JSON.stringify({ attachments })
     }),
 
+  /** Upload one real file (any allowed type) to the issue; stored privately in Cloudinary. */
+  uploadAttachment: async (key: string, file: File): Promise<{ attachment: Attachment; issue: Issue }> => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    // No Content-Type header: the browser sets the multipart boundary itself.
+    const response = await fetch(`${BASE}/issues/${encodeURIComponent(key)}/attachments/upload`, {
+      method: 'POST',
+      body: form,
+      credentials: 'include'
+    });
+    const text = await response.text();
+    let data: any = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
+    if (!response.ok) throw new Error(data.error || `Upload failed (${response.status})`);
+    return normalizeResponse(data);
+  },
+
   getEmployees: () => request<{ employees: Employee[] }>('/employees'),
 
   getProjects: () => request<{ projects: Project[] }>('/projects'),

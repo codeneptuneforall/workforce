@@ -23,6 +23,13 @@ export type AuthUser = Omit<UserAccount, 'active'> & {
 
 export type EmployeeStatus = 'Active' | 'Inactive';
 
+/** Where an uploaded file lives in Cloudinary. The URL is derived from it, never stored. */
+export interface StoredPhoto {
+  publicId: string;
+  version?: number;
+  format?: string;
+}
+
 export interface Employee {
   id: string;
   code: string;
@@ -34,8 +41,14 @@ export interface Employee {
   joiningDate: string;
   /** Birthday as YYYY-MM-DD. Only the month and day are used, for the greeting. */
   dateOfBirth?: string;
-  /** Optional profile photo (URL or data URI) shown in birthday greetings and people lists. */
+  /**
+   * Profile photo URL shown in birthday greetings and people lists. For uploaded photos
+   * the API builds it from `photo` on every response; otherwise it is an external link
+   * (or a legacy data URI).
+   */
   photoUrl?: string;
+  /** Server-only: path of the uploaded photo in Cloudinary. Never sent to the browser. */
+  photo?: StoredPhoto;
   bloodGroup?: string;
   emergencyNumber?: string;
   address?: string;

@@ -5,6 +5,11 @@ import { AlertTriangleIcon, ArrowLeftIcon, CheckCircle2Icon, InfoIcon, XCircleIc
 import type { LucideIcon } from "lucide-react";
 import { Tone } from "@shared/types";
 import { cn } from "../../utils/cn";
+import { cloudinaryThumb } from "../../utils/cloudinary";
+
+/** Rendered avatar diameter in px (h-7 / h-9 / h-14), used to request a right-sized photo. */
+const AVATAR_PX = { sm: 28, md: 36, lg: 56 } as const;
+
 export function PageHeader({
   title,
   description,
@@ -174,7 +179,7 @@ export function Avatar({
   }[size];
   const [broken, setBroken] = useState(false);
   if (src && src.trim() && !broken) {
-    return <img src={src} alt={name} className={cn('inline-flex shrink-0 items-center justify-center rounded-full object-cover bg-brand-100', s, className)} onError={() => setBroken(true)} />;
+    return <img src={cloudinaryThumb(src, AVATAR_PX[size])} alt={name} className={cn('inline-flex shrink-0 items-center justify-center rounded-full object-cover bg-brand-100', s, className)} onError={() => setBroken(true)} />;
   }
   return <span className={cn('inline-flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-800', s, className)} aria-hidden>{initials}</span>;
 }
