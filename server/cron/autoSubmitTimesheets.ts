@@ -108,7 +108,11 @@ async function autoSubmitTimesheets(): Promise<{ submitted: number; skipped: num
       empWeekSessions.get(key)!.push(s);
     }
 
-    const existingTsKeys = new Set(draftTimesheets.map((t) => `${t.employeeId}|${t.weekStart}`));
+    // Every timesheet that already exists, whatever its status. Checking only Drafts
+    // here re-created a timesheet on every server start for each week that was
+    // already Submitted/Approved, producing duplicates.
+    const allTimesheets = await TimesheetModel.find({}, { employeeId: 1, weekStart: 1 }).lean();
+    const existingTsKeys = new Set(allTimesheets.map((t) => `${t.employeeId}|${t.weekStart}`));
 
     for (const [key, weekSessions] of empWeekSessions.entries()) {
       if (existingTsKeys.has(key)) continue; // Already has a timesheet record
@@ -126,8 +130,12 @@ async function autoSubmitTimesheets(): Promise<{ submitted: number; skipped: num
 
       if (hasIncomplete) continue;
 
+      // Re-check right before writing, in case the employee created one meanwhile.
+      if (await TimesheetModel.exists({ employeeId, weekStart })) continue;
+
       // Create and submit the timesheet
-      const tsId = `ts-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      existingTsKeys.add(key);
+      const tsId =`ts-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
       await TimesheetModel.create({
         _id: tsId,
         employeeId,

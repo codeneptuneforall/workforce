@@ -19,11 +19,20 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
 
 ---
 
+## Hotfix: duplicate timesheets (found in the Phase 1 deploy logs)
+
+- [ ] **H1. Auto-submit cron creates duplicate timesheets on every server start**
+  - Cause: [server/cron/autoSubmitTimesheets.ts](../server/cron/autoSubmitTimesheets.ts) only checked **Draft** timesheets before creating one, so every week already Submitted/Approved got a new copy on each restart (12 created in the 2026-11-20 deploy). The `{employeeId, weekStart}` index is not unique, so MongoDB allowed it.
+  - [ ] Code fix committed (check all timesheets + re-check before insert)
+  - [ ] Deployed to Render
+  - [ ] Existing duplicates cleaned with [server/fix-duplicate-timesheets.ts](../server/fix-duplicate-timesheets.ts) (dry run first, then `--apply`)
+  - [ ] Later: make the `{employeeId, weekStart}` index unique, once there are no duplicates left
+
 ## Phase 1: Stop the crashes (low risk)
 
 - [ ] **1. Serve `/api/state` from the in-memory cache**
   - [x] Code committed (`a2b3d36`): 60 s TTL cache; cron and bug-tracker writes invalidate it
-  - [ ] Deployed to Render
+  - [x] Deployed to Render (2026-11-20, merge `b1692f9`)
   - [ ] Verified on Render (memory flat, edits show for other users)
   - Where: [server/routes/api.ts](../server/routes/api.ts) (`GET /state`, line ~33), [server/store.ts](../server/store.ts) (`ensureLoaded`)
   - Change: use `ensureLoaded()` instead of `loadState()`.
@@ -33,7 +42,7 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
 
 - [ ] **2. Close the warm Chromium when idle**
   - [x] Code committed (`74ddbdf`): closes after `PDF_BROWSER_IDLE_MS` (default 2 min)
-  - [ ] Deployed to Render
+  - [x] Deployed to Render (2026-11-20, merge `b1692f9`)
   - [ ] Verified on Render (logs show `closing idle Chromium`, memory drops after)
   - Where: [server/pdfBrowser.ts](../server/pdfBrowser.ts)
   - Change: close the shared browser after ~2 min with no PDF requests and relaunch it on demand.
@@ -41,7 +50,7 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
 
 - [ ] **3. Run compiled JavaScript in production instead of `tsx`**
   - [x] Code committed (`b2efcc8`): esbuild bundle at `dist/server/index.js`; booted locally OK
-  - [ ] Deployed to Render
+  - [x] Deployed to Render (2026-11-20, merge `b1692f9`; compiled bundle boots, `/api/health` 200)
   - [ ] Verified on Render (app loads, login + payslip PDF work)
   - Where: [package.json](../package.json) (`build` / `start`), [Dockerfile](../Dockerfile)
   - Change: compile `server/` and `shared/` to `dist/server` and run it with `node`.
@@ -51,7 +60,8 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
   - [x] Code committed (`e801e67`): `/api/health` checks MongoDB; `[memory]` log every 5 min
   - [ ] Render: Health Check Path set to `/api/health`
   - [ ] Render: env `NODE_OPTIONS=--max-old-space-size=<per plan>` added
-  - [ ] Deployed and verified on Render
+  - [x] Deployed to Render (2026-11-20; `/api/health` → `{"ok":true,"db":"connected","commit":"b1692f9"}`)
+  - [ ] Verified on Render (a stuck instance is restarted automatically)
   - Where: [server/index.ts](../server/index.ts), Render service settings
   - Change: add `GET /health` (checks the DB connection) and set the Render health check path to it. Start Node with `--max-old-space-size` sized to the plan.
   - Verify: Render shows the service healthy, and a stuck instance is restarted automatically.
