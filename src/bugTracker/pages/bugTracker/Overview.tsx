@@ -29,11 +29,18 @@ export function Overview() {
   const base = portalBase();
 
   // Compute derived data unconditionally (hooks must be called unconditionally)
+  const since = range === 'all' ? undefined : format(subDays(new Date(), Number(range)), 'yyyy-MM-dd');
   const issues = useMemo(() => {
-    if (range === 'all') return scopedIssues;
-    const from = format(subDays(new Date(), Number(range)), 'yyyy-MM-dd');
-    return scopedIssues.filter((i) => i.createdAt.slice(0, 10) >= from);
-  }, [scopedIssues, range]);
+    if (!since) return scopedIssues;
+    return scopedIssues.filter((i) => i.createdAt.slice(0, 10) >= since);
+  }, [scopedIssues, since]);
+
+  // Recent activity comes from its own API; these keep it in step with the page.
+  const visibleKeys = useMemo(() => new Set(issues.map((i) => i.key)), [issues]);
+  const activityVersion = useMemo(
+    () => `${issues.length}:${issues.reduce((max, i) => i.updatedAt > max ? i.updatedAt : max, '')}`,
+    [issues]
+  );
 
   const metrics = computeIssueMetrics(issues, currentUser.id);
   const openIssues = issues.filter((i) => isOpenStatus(i.status));
@@ -138,7 +145,7 @@ export function Overview() {
           <RecentIssues issues={issues} />
         </Panel>
         <Panel title="Recent activity" bodyClassName="">
-          <RecentActivity issues={issues} />
+          <RecentActivity projectId={projectScope} since={since} visibleKeys={visibleKeys} version={activityVersion} />
         </Panel>
       </div>
     </div>);

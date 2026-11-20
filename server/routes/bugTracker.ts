@@ -286,13 +286,31 @@ function toApiIssue(doc: any): any {
   return out;
 }
 
+/**
+ * MongoDB filter for the issues a user may see in lists and feeds.
+ * admin / qa: everything. Others: issues they are assigned to or reported, plus
+ * (for employees) issues in Workforce projects they are a member of.
+ * Shared by GET /issues and GET /overview/activity so both stay in sync.
+ */
+async function issueVisibilityMatch(user: AuthUser, context: BugTrackerContext): Promise<Record<string, unknown>> {
+  const { role: userRole, id: btId } = context;
+  if (userRole === 'admin' || userRole === 'qa') return {};
+  let projectIds: string[] = [];
+  if (user.role === 'employee' && user.employeeId) {
+    const projects = await ProjectModel.find({ employeeIds: user.employeeId }, { _id: 1 }).lean();
+    projectIds = projects.map((p: any) => String(p._id));
+  }
+  const or: Record<string, unknown>[] = [{ assigneeId: btId }, { reporterId: btId }];
+  if (projectIds.length) or.push({ projectId: { $in: projectIds } });
+  return { $or: or };
+}
+
 /** Issue list with optional filters */
 
 bugTrackerRouter.get('/issues', readLimiter, async (_req, res) => {
   const { projectId, status, assigneeId, reporterId, search } = _req.query as Record<string, string> | undefined ?? {};
   const context = await getBugTrackerContext(_req.user!);
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity. Contact an administrator.' }); return; }
-  const { role: userRole, id: btId } = context;
   const filter: Record<string, unknown> = {};
   if (projectId) filter.projectId = projectId;
   if (status) filter.status = status;
@@ -300,24 +318,50 @@ bugTrackerRouter.get('/issues', readLimiter, async (_req, res) => {
   if (reporterId) filter.reporterId = reporterId;
   if (search) filter.$text = { $search: search };
 
-  const issues = await BugTrackerIssueModel.find(filter).sort({ updatedAt: -1 }).lean();
+  // Visibility is applied in the query, so invisible issues are never loaded.
+  const visibility = await issueVisibilityMatch(_req.user!, context);
+  const query = Object.keys(visibility).length ? { $and: [filter, visibility] } : filter;
+  const issues = await BugTrackerIssueModel.find(query).sort({ updatedAt: -1 }).lean();
 
-  let visible = issues;
-  if (userRole !== 'admin' && userRole !== 'qa') {
-    // Resolve project memberships from Workforce.
-    let projectIds: string[] = [];
-    if (_req.user!.role === 'employee' && _req.user!.employeeId) {
-      const projects = await ProjectModel.find({ employeeIds: _req.user!.employeeId }, { _id: 1 }).lean();
-      projectIds = projects.map((p: any) => p._id);
-    }
-    visible = issues.filter((issue: any) =>
-      issue.assigneeId === btId ||
-      issue.reporterId === btId ||
-      projectIds.includes(issue.projectId)
-    );
-  }
+  res.json({ issues: issues.map(toApiIssue) });
+});
 
-  res.json({ issues: visible.map(toApiIssue) });
+/**
+ * Recent activity feed for the Overview page.
+ * Query: projectId (optional), since=YYYY-MM-DD (issues created on/after), limit (default 8, max 50).
+ * Returns the newest activity entries across visible issues, without loading
+ * full issue documents into the client.
+ */
+bugTrackerRouter.get('/overview/activity', readLimiter, async (_req, res) => {
+  const { projectId, since, limit } = _req.query as Record<string, string | undefined>;
+  const context = await getBugTrackerContext(_req.user!);
+  if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity. Contact an administrator.' }); return; }
+
+  const filter: Record<string, unknown> = {};
+  if (projectId && projectId !== 'all') filter.projectId = String(projectId);
+  if (since && /^\d{4}-\d{2}-\d{2}$/.test(since)) filter.createdAt = { $gte: since };
+  const visibility = await issueVisibilityMatch(_req.user!, context);
+  const match = Object.keys(visibility).length ? { $and: [filter, visibility] } : filter;
+  const max = Math.min(Math.max(Number.parseInt(String(limit ?? ''), 10) || 8, 1), 50);
+
+  const activity = await BugTrackerIssueModel.aggregate([
+    { $match: match },
+    { $project: { _id: 0, key: 1, title: 1, activity: 1 } },
+    { $unwind: '$activity' },
+    { $sort: { 'activity.createdAt': -1 } },
+    { $limit: max },
+    { $project: {
+        id: '$activity.id',
+        actorId: '$activity.actorId',
+        message: '$activity.message',
+        createdAt: '$activity.createdAt',
+        toStatus: '$activity.toStatus',
+        issueKey: '$key',
+        issueTitle: '$title'
+    } }
+  ]);
+
+  res.json({ activity });
 });
 
 /** Single issue by key � visibility checked server-side. */

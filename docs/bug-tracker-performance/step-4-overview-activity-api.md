@@ -50,6 +50,20 @@ Implementation:
   "All time").
 - Refresh the feed on socket `issue:*` events (simple: refetch, debounced ~1 s).
 
+## As implemented
+
+- Shared helper `issueVisibilityMatch(user, context)` returns a MongoDB filter.
+  `GET /issues` now applies visibility **in the query** (previously loaded every
+  issue and filtered in JS) — same rule, less data read. `GET /overview/activity`
+  uses the same helper.
+- Client-side and server-side visibility rules differ slightly (client uses the
+  Bug Tracker employee's `projectIds` and preview role), so `RecentActivity`
+  fetches 25 entries and keeps only those whose `issueKey` is in the Overview's
+  current issue set, then shows 8. The feed therefore matches the old behaviour.
+- Refetch trigger: Overview passes `version` = issue count + latest `updatedAt`;
+  project / range changes reload immediately, live updates are debounced 1 s.
+- Keeps showing the last feed while refetching; skeleton only on first load.
+
 ## Verify
 
 - Overview → Network shows `GET /overview/activity`; panel shows the same 8 entries as

@@ -70,6 +70,12 @@ export interface ActivityEntry {
   toStatus?: IssueStatus;
 }
 
+/** Activity entry from GET /overview/activity, tagged with its issue. */
+export interface ActivityFeedEntry extends ActivityEntry {
+  issueKey: string;
+  issueTitle: string;
+}
+
 export interface QAVerification {
   status: QAStatus;
   verifierId?: string;
