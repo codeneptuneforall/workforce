@@ -11,6 +11,11 @@ export async function connectDatabase(): Promise<typeof mongoose> {
   return mongoose;
 }
 
+/** True while the MongoDB connection is open (mongoose readyState 1). */
+export function isDatabaseConnected(): boolean {
+  return mongoose.connection.readyState === 1;
+}
+
 export async function disconnectDatabase(): Promise<void> {
   await mongoose.connection.close();
 }

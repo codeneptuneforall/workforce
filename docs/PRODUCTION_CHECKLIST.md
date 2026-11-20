@@ -3,6 +3,8 @@
 Tracks the fixes needed to keep the app stable on Render and bring it to production standard.
 Work top to bottom. Tick an item only once it is merged **and** verified on Render.
 
+**Status legend:** ⬜ not started · 🟡 code committed, not deployed · 🔵 deployed, verifying on Render · ✅ verified (box ticked)
+
 **Problem summary (Nov 2026):** the Render instance freezes or restarts. The main causes are
 memory, CPU and bandwidth, not Chromium alone:
 
@@ -20,6 +22,7 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
 ## Phase 1: Stop the crashes (low risk)
 
 - [ ] **1. Serve `/api/state` from the in-memory cache**
+  - **Status: 🟡 committed `a2b3d36`, not deployed.** 60 s TTL cache; cron and bug-tracker writes now invalidate it.
   - Where: [server/routes/api.ts](../server/routes/api.ts) (`GET /state`, line ~33), [server/store.ts](../server/store.ts) (`ensureLoaded`)
   - Change: use `ensureLoaded()` instead of `loadState()`.
   - Before switching: audit every write that bypasses `persistDiff` / `invalidateCache` (bug tracker routes, WFH history, late logins, uploads) so the cache never goes stale.
@@ -27,16 +30,19 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
   - Verify: Render memory and MongoDB read ops drop; data edited by one user still appears for others within one poll.
 
 - [ ] **2. Close the warm Chromium when idle**
+  - **Status: 🟡 committed `74ddbdf`, not deployed.** Closes after `PDF_BROWSER_IDLE_MS` (default 2 min).
   - Where: [server/pdfBrowser.ts](../server/pdfBrowser.ts)
   - Change: close the shared browser after ~2 min with no PDF requests and relaunch it on demand.
   - Verify: memory returns to baseline a few minutes after a payslip download.
 
 - [ ] **3. Run compiled JavaScript in production instead of `tsx`**
+  - **Status: 🟡 committed `b2efcc8`, not deployed.** esbuild bundle at `dist/server/index.js`; booted locally OK.
   - Where: [package.json](../package.json) (`build` / `start`), [Dockerfile](../Dockerfile)
   - Change: compile `server/` and `shared/` to `dist/server` and run it with `node`.
   - Verify: the app starts, and memory at idle is lower than before.
 
 - [ ] **4. Add a health check and a memory cap**
+  - **Status: 🟡 code written, not yet committed.** Still to do in Render: Health Check Path `/api/health`, env `NODE_OPTIONS=--max-old-space-size=<per plan>`.
   - Where: [server/index.ts](../server/index.ts), Render service settings
   - Change: add `GET /health` (checks the DB connection) and set the Render health check path to it. Start Node with `--max-old-space-size` sized to the plan.
   - Verify: Render shows the service healthy, and a stuck instance is restarted automatically.
@@ -113,3 +119,4 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
 | 2026-11-20 | 1. `/api/state` from cache | `fix/production-stability` @ a2b3d36 | Committed. Typecheck passes. Awaiting local test + Render memory check. |
 | 2026-11-20 | 2. Close idle Chromium | `fix/production-stability` @ 74ddbdf | Committed. Typecheck passes. Awaiting local test + Render memory check. |
 | 2026-11-20 | 3. Compiled JS instead of tsx | `fix/production-stability` | esbuild bundle `dist/server/index.js`; booted locally, `/api/health` OK. Awaiting Render deploy. Follow-up: add `esbuild` as an explicit devDependency (now comes via tsx). Pre-existing: Mongoose warns of a duplicate index on `{employeeId, date}`. |
+| 2026-11-20 | 4. Health check + memory cap | `fix/production-stability` | `/api/health` returns 503 when MongoDB is down; `[memory]` log every 5 min. Render setup still to do: Health Check Path `/api/health`, env `NODE_OPTIONS=--max-old-space-size=<per plan>`. |

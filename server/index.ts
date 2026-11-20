@@ -6,7 +6,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { attachUser } from './auth';
 import { config } from './config';
-import { connectDatabase, disconnectDatabase } from './db';
+import { connectDatabase, disconnectDatabase, isDatabaseConnected } from './db';
 import { apiRouter } from './routes/api';
 import { authRouter } from './routes/auth';
 import uploadRouter from './routes/upload';
@@ -62,9 +62,17 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many attempts. Please wait a few minutes and try again.' }
 });
 
+/**
+ * Health check for the hosting platform (Render: Settings → Health Check Path).
+ * Returns 503 while MongoDB is disconnected, so the platform restarts an instance
+ * that is up but cannot serve data, instead of leaving it hanging.
+ */
 app.get('/api/health', (_req, res) => {
-  res.json({
-    ok: true,
+  const dbConnected = isDatabaseConnected();
+  res.status(dbConnected ? 200 : 503).json({
+    ok: dbConnected,
+    db: dbConnected ? 'connected' : 'disconnected',
+    uptimeSeconds: Math.round(process.uptime()),
     service: 'workforce-api',
     // Lets you confirm which commit a deployment is actually running.
     commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? process.env.GIT_COMMIT?.slice(0, 7) ?? 'unknown',
@@ -153,6 +161,24 @@ async function start(): Promise<void> {
     console.log(`[server] workforce API listening on http://0.0.0.0:${config.port}`);
     if (config.serveClient) console.log(`[server] serving client from ${clientDir}`);
   });
+  startMemoryLog();
+}
+
+/**
+ * Logs process memory every MEMORY_LOG_INTERVAL_MS (default 5 min, 0 disables), so a
+ * slow climb towards the instance limit is visible in the logs before it crashes.
+ * Chromium runs in separate processes and is not included in these numbers.
+ */
+function startMemoryLog(): void {
+  const interval = Number(process.env.MEMORY_LOG_INTERVAL_MS ?? 300_000);
+  if (!Number.isFinite(interval) || interval <= 0) return;
+  const mb = (bytes: number) => Math.round(bytes / 1024 / 1024);
+  const log = () => {
+    const m = process.memoryUsage();
+    console.log(`[memory] rss=${mb(m.rss)}MB heapUsed=${mb(m.heapUsed)}MB heapTotal=${mb(m.heapTotal)}MB external=${mb(m.external)}MB`);
+  };
+  log();
+  setInterval(log, interval).unref();
 }
 
 async function shutdown(signal: string): Promise<void> {
