@@ -9,6 +9,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
 import type { Issue } from '../../types/bugTracker';
@@ -20,7 +21,7 @@ type QueueFilter = 'all' | 'Fixed' | 'QA Testing';
 const verificationLabel = { Fixed: 'Awaiting QA', 'QA Testing': 'In testing' } as Record<string, string>;
 
 export function QAVerification() {
-  const { permissions, scopedIssues, getEmployee, getProject } = useBugTracker();
+  const { permissions, scopedIssues, getEmployee, getProject, loading, issuesLoading } = useBugTracker();
   const [filter, setFilter] = useState<QueueFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<{type: 'passed' | 'failed';issue: Issue;} | null>(null);
@@ -46,6 +47,7 @@ export function QAVerification() {
   }, [queue, selectedId, outcome]);
 
   if (!permissions.viewQAQueue) return <AccessRestricted area="QA Verification" />;
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="QA verification" />;
 
   const selected = queue.find((i) => i.id === selectedId);
   const allQueue = scopedIssues.filter((i) => QA_STATUSES.includes(i.status));

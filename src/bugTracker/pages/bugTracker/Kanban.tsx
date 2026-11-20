@@ -2,13 +2,14 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { AlertTriangleIcon, BanIcon } from 'lucide-react';
 import { KanbanBoard } from '../../components/kanban/KanbanBoard';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { SelectField } from '../../components/ui/SelectField';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
 import { isOverdue } from '../../utils/issueMetrics';
 
 export function Kanban() {
-  const { scopedIssues, employees, accessibleProjects, projectScope, setProjectScope, currentUser } = useBugTracker();
+  const { scopedIssues, employees, accessibleProjects, projectScope, setProjectScope, currentUser, loading, issuesLoading } = useBugTracker();
   const { startTransition, openAssignment, dialogs } = useIssueTransition();
   const [assigneeId, setAssigneeId] = useState('');
   const [attentionOnly, setAttentionOnly] = useState(false);
@@ -50,6 +51,8 @@ export function Kanban() {
     { value: 'unassigned', label: 'Unassigned' },
     ...employees.filter((e) => e.role === 'developer').map((e) => ({ value: e.id, label: e.name })),
   ];
+
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="Kanban board" />;
 
   return (
     <div className="space-y-4 px-4 py-6 sm:px-6">

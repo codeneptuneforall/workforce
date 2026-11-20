@@ -58,7 +58,12 @@ interface BugTrackerContextValue {
   deleteIssue: (key: string) => Promise<void>;
   resetPreviewData: () => void;
   loading: boolean;
+  /** True until the first issue list fetch has finished (success or failure). */
+  issuesLoading: boolean;
 }
+
+/** Fallback poll interval; socket.io pushes live updates in between. */
+const ISSUE_POLL_MS = 60000;
 
 const BugTrackerContext = createContext<BugTrackerContextValue | null>(null);
 
@@ -82,6 +87,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
   const [projectScope, setProjectScope] = useState('all');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [issuesLoading, setIssuesLoading] = useState(true);
 
   const employeeMap = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees]);
   const mountedRef = useRef(true);
@@ -207,28 +213,33 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     }
   }, []);
 
+  // Initial issue load (always runs, even if the tab is hidden), then a slow
+  // fallback poll. Live updates normally arrive via socket.io below; polling
+  // only covers a dropped socket. Returning to the tab triggers a refresh.
   useEffect(() => {
-    mountedRef.current = true;
+    let cancelled = false;
     (async () => {
-      try {
-        const res = await bugTrackerApi.getIssues();
-        if (mountedRef.current) setIssues(res.issues ?? []);
-      } catch (err) {
-        console.error('[bugTracker] issues load failed', err);
-      }
+      await refreshIssues();
+      if (!cancelled) setIssuesLoading(false);
     })();
-    return () => { mountedRef.current = false; };
-  }, []);
 
-  // Poll for issue changes so every screen sees live status updates
-  // from other users without a manual page refresh.
-  useEffect(() => {
-    const poll = async () => {
-      if (document.visibilityState === 'visible') await refreshIssues();
+    let lastFetch = Date.now();
+    const poll = () => {
+      if (document.visibilityState !== 'visible') return;
+      lastFetch = Date.now();
+      void refreshIssues();
     };
-    const id = window.setInterval(poll, 15000);
-    poll();
-    return () => window.clearInterval(id);
+    // Tab switches only refresh if the data is older than 30s.
+    const onVisible = () => {
+      if (Date.now() - lastFetch >= 30000) poll();
+    };
+    const id = window.setInterval(poll, ISSUE_POLL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refreshIssues]);
 
   // Socket.io: push issue updates instantly (sub-second) without polling.
@@ -278,6 +289,8 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     socket.on('issue:commented', (data: { issueKey: string; comment: any }) => {
       setIssues((prev) => prev.map((i) => {
         if (i.id !== data.issueKey && i.key !== data.issueKey) return i;
+        // addComment() may have already appended the poster's own comment.
+        if (data.comment?.id && i.comments.some((c) => c.id === data.comment.id)) return i;
         return {
           ...i,
           updatedAt: new Date().toISOString(),
@@ -329,15 +342,15 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       const res = await bugTrackerApi.createIssue(draft);
       const issue = res.issue;
       if (!issue) return null;
-      setIssues((prev) => [issue, ...prev]);
+      // The socket `issue:created` event may have already added it.
+      setIssues((prev) => [issue, ...prev.filter((i) => i.id !== issue.id)]);
       notify([draft.assigneeId], 'Assigned to you', `${issue.key} ${issue.title}`, issue.key);
-      await refreshIssues();
       return issue;
     } catch (err: any) {
       console.error('[bugTracker] createIssue failed', err);
       throw new Error(err.message || 'Failed to report issue');
     }
-  }, [notify, refreshIssues]);
+  }, [notify]);
 
   const updateIssue = useCallback(async (id: string, patch: IssueEditablePatch): Promise<void> => {
     try {
@@ -347,11 +360,10 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (res.issue) {
         setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] updateIssue failed', err);
     }
-  }, [issues, refreshIssues]);
+  }, [issues]);
 
   const assignIssue = useCallback(async (id: string, { assigneeId, dueDate, priority }: AssignOptions): Promise<void> => {
     try {
@@ -371,12 +383,11 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       } else {
         toast.error('Failed to assign issue. Please try again.');
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] assignIssue failed', err);
       throw err;
     }
-  }, [issues, employeeMap, notify, refreshIssues]);
+  }, [issues, employeeMap, notify]);
 
   const runTransition = useCallback(async (id: string, transitionId: TransitionId, note?: string): Promise<void> => {
     try {
@@ -387,7 +398,6 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (res.issue) {
         setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
       }
-      await refreshIssues();
       const label = `${target.key} ${target.title}`;
       if (transitionId === 'submit-qa') notify(['emp-sneha', 'emp-vikram'], 'Ready for QA', label, target.key);
       if (transitionId === 'fail-qa' || transitionId === 'reopen') notify([target.assigneeId, target.reporterId], 'Issue reopened', label, target.key);
@@ -396,7 +406,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       console.error('[bugTracker] runTransition failed', err);
       throw err;
     }
-  }, [issues, notify, refreshIssues]);
+  }, [issues, notify]);
 
   const addComment = useCallback(async (id: string, body: string, kind: CommentKind): Promise<void> => {
     try {
@@ -407,14 +417,14 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
         setIssues((prev) => prev.map((i) => i.id === id ? ({
           ...i,
           updatedAt: nowIso(),
-          comments: [...i.comments, res.comment as any]
+          // The socket `issue:commented` event may have already appended it.
+          comments: i.comments.some((c) => c.id === res.comment!.id) ? i.comments : [...i.comments, res.comment as any]
         }) : i));
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] addComment failed', err);
     }
-  }, [issues, refreshIssues]);
+  }, [issues]);
 
   const addAttachments = useCallback(async (id: string, attachments: Attachment[]): Promise<void> => {
     try {
@@ -424,22 +434,20 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (res.issue) {
         setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] addAttachments failed', err);
     }
-  }, [issues, refreshIssues]);
+  }, [issues]);
 
   const deleteIssue = useCallback(async (key: string): Promise<void> => {
     try {
       await bugTrackerApi.deleteIssue(key);
       setIssues((prev) => prev.filter((i) => i.key !== key));
-      await refreshIssues();
     } catch (err: any) {
       console.error('[bugTracker] deleteIssue failed', err);
       throw new Error(err.message || 'Failed to delete issue');
     }
-  }, [refreshIssues]);
+  }, []);
 
   const markNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n: AppNotification) => n.recipientId === currentUser.id ? { ...n, read: true } : n));
@@ -479,7 +487,8 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     addAttachments,
     deleteIssue,
     resetPreviewData,
-    loading
+    loading,
+    issuesLoading
   };
 
   return <BugTrackerContext.Provider value={value}>{children}</BugTrackerContext.Provider>;

@@ -24,7 +24,7 @@ const rangeOptions = [
 
 
 export function Overview() {
-  const { scopedIssues, currentUser, accessibleProjects, projectScope, setProjectScope, loading } = useBugTracker();
+  const { scopedIssues, currentUser, accessibleProjects, projectScope, setProjectScope, loading, issuesLoading } = useBugTracker();
   const [range, setRange] = useState('all');
   const base = portalBase();
 
@@ -39,7 +39,7 @@ export function Overview() {
   const openIssues = issues.filter((i) => isOpenStatus(i.status));
 
   // Show loading skeleton while data is being fetched
-  if (loading) {
+  if (loading || issuesLoading) {
     return (
       <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 sm:px-6">
         <PageHeader

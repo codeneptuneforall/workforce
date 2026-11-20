@@ -8,13 +8,14 @@ import { Pagination } from '../../components/issues/Pagination';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes, portalBase } from '../../data/navigation';
 import { useIssueTable } from '../../hooks/useIssueTable';
 import type { IssueFilterState, IssuePreset } from '../../types/bugTracker';
 
 export function AllIssues() {
-  const { scopedIssues, projectScope, getProject } = useBugTracker();
+  const { scopedIssues, projectScope, getProject, loading, issuesLoading } = useBugTracker();
   const [params] = useSearchParams();
   const base = portalBase();
 
@@ -38,6 +39,8 @@ export function AllIssues() {
   }, [params, updateFilter]);
 
   const scopeLabel = projectScope === 'all' ? 'all your projects' : getProject(projectScope)?.name;
+
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="All issues" rows={10} />;
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 sm:px-6">

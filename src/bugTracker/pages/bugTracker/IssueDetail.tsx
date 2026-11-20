@@ -17,6 +17,7 @@ import { AccessRestricted } from '../../components/ui/AccessRestricted';
 import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes, portalBase } from '../../data/navigation';
@@ -28,7 +29,7 @@ import type { Issue } from '../../types/bugTracker';
 
 export function IssueDetail() {
   const { issueKey = '' } = useParams();
-  const { getIssueByKey, currentUser, permissions, getProject, updateIssue, addAttachments, getIssue, deleteIssue } = useBugTracker();
+  const { getIssueByKey, currentUser, permissions, getProject, updateIssue, addAttachments, getIssue, deleteIssue, issuesLoading } = useBugTracker();
   const { startTransition, openAssignment, dialogs } = useIssueTransition();
   const navigate = useNavigate();
   const [tab, setTab] = useState<'comments' | 'activity'>('comments');
@@ -37,20 +38,30 @@ export function IssueDetail() {
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [issueFromApi, setIssueFromApi] = useState<Issue | null>(null);
+  // Key whose one-time API fetch has finished (found or not).
+  const [fetchedKey, setFetchedKey] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const base = portalBase();
   const localIssue = getIssueByKey(issueKey);
-  // Prefer live context data (polled every 15s) so status changes from anyone
-  // reflect without a page refresh. Fall back to one-time API fetch.
-  const issue = localIssue ?? issueFromApi;
+  // Prefer live context data (socket + fallback poll) so status changes from
+  // anyone reflect without a page refresh. Fall back to one-time API fetch.
+  const issue = localIssue ?? (issueFromApi?.key === issueKey ? issueFromApi : null);
+  const hasLocalIssue = Boolean(localIssue);
 
   useEffect(() => {
-    if (!localIssue && issueKey) {
-      getIssue(issueKey).then((fetched) => {
-        if (fetched) setIssueFromApi(fetched);
-      });
-    }
-  }, [issueKey, localIssue, getIssue]);
+    if (hasLocalIssue || !issueKey) return;
+    let cancelled = false;
+    getIssue(issueKey).then((fetched) => {
+      if (cancelled) return;
+      if (fetched) setIssueFromApi(fetched);
+      setFetchedKey(issueKey);
+    });
+    return () => { cancelled = true; };
+  }, [issueKey, hasLocalIssue, getIssue]);
+
+  if (!issue && (issuesLoading || fetchedKey !== issueKey)) {
+    return <PageLoadingSkeleton rows={4} />;
+  }
 
   if (!issue) {
     return (

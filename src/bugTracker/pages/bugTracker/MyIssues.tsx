@@ -3,6 +3,7 @@ import { InboxIcon } from 'lucide-react';
 import { IssueQuickRow } from '../../components/issues/IssueQuickRow';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
 import type { Issue } from '../../types/bugTracker';
@@ -22,7 +23,7 @@ const emptyCopy: Record<TabId, {title: string;description: string;}> = {
 };
 
 export function MyIssues() {
-  const { scopedIssues, currentUser, permissions } = useBugTracker();
+  const { scopedIssues, currentUser, permissions, loading, issuesLoading } = useBugTracker();
   const { startTransition, dialogs } = useIssueTransition();
   const [tab, setTab] = useState<TabId>(currentUser.role === 'reporter' ? 'reported' : currentUser.role === 'qa' ? 'qa' : 'assigned');
 
@@ -64,6 +65,8 @@ export function MyIssues() {
 
 
   const current = lists[tab];
+
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="My issues" />;
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 sm:px-6">
