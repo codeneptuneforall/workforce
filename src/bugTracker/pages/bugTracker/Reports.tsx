@@ -6,6 +6,7 @@ import { IssuesByProjectChart } from '../../components/charts/IssuesByProjectCha
 import { TeamWorkloadChart } from '../../components/charts/TeamWorkloadChart';
 import { AccessRestricted } from '../../components/ui/AccessRestricted';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { Panel } from '../../components/ui/Panel';
 import { SelectField } from '../../components/ui/SelectField';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
@@ -22,7 +23,7 @@ const rangeOptions = [
 
 
 export function Reports() {
-  const { permissions, scopedIssues, accessibleProjects, projectScope, setProjectScope, employees, getProject } = useBugTracker();
+  const { permissions, scopedIssues, accessibleProjects, projectScope, setProjectScope, employees, getProject, loading, issuesLoading } = useBugTracker();
   const [weeks, setWeeks] = useState('8');
 
   const open = scopedIssues.filter((i) => isOpenStatus(i.status));
@@ -76,13 +77,14 @@ export function Reports() {
   const overdueList = open.filter(isOverdue);
 
   if (!permissions.viewReports) return <AccessRestricted area="Reports & Analytics" />;
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="Reports" />;
 
   const resolvedIssues = scopedIssues.filter((i) => !isOpenStatus(i.status));
   const reopenedCount = scopedIssues.filter((i) => i.status === 'Reopened').length;
   const avgResolutionDays = resolvedIssues.length
     ? (resolvedIssues.reduce((acc, i) => {
         const created = new Date(i.createdAt).getTime();
-        const resolved = new Date((i as any).resolution?.resolvedAt || i.updatedAt).getTime();
+        const resolved = new Date(i.resolvedAt || i.updatedAt).getTime();
         return acc + Math.max(0, (resolved - created) / 86400000);
       }, 0) / resolvedIssues.length).toFixed(1)
     : '—';

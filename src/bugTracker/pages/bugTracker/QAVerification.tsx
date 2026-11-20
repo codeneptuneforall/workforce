@@ -9,8 +9,10 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
+import { useFullIssue } from '../../hooks/useFullIssue';
 import type { Issue } from '../../types/bugTracker';
 import { formatShortDate } from '../../utils/dates';
 import { severityRank } from '../../utils/issueStyles';
@@ -20,7 +22,7 @@ type QueueFilter = 'all' | 'Fixed' | 'QA Testing';
 const verificationLabel = { Fixed: 'Awaiting QA', 'QA Testing': 'In testing' } as Record<string, string>;
 
 export function QAVerification() {
-  const { permissions, scopedIssues, getEmployee, getProject } = useBugTracker();
+  const { permissions, scopedIssues, getEmployee, getProject, loading, issuesLoading } = useBugTracker();
   const [filter, setFilter] = useState<QueueFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<{type: 'passed' | 'failed';issue: Issue;} | null>(null);
@@ -45,7 +47,13 @@ export function QAVerification() {
     if (!outcome && (!selectedId || !queue.some((i) => i.id === selectedId))) setSelectedId(queue[0]?.id ?? null);
   }, [queue, selectedId, outcome]);
 
+  // The verification panel needs steps, fix summary and evidence attachments,
+  // which come from the full issue (GET /issues/:key), not the summary list.
+  const selectedKey = queue.find((i) => i.id === selectedId)?.key;
+  const { issue: selectedFull, notFound: selectedMissing } = useFullIssue(outcome ? undefined : selectedKey);
+
   if (!permissions.viewQAQueue) return <AccessRestricted area="QA Verification" />;
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="QA verification" />;
 
   const selected = queue.find((i) => i.id === selectedId);
   const allQueue = scopedIssues.filter((i) => QA_STATUSES.includes(i.status));
@@ -151,8 +159,19 @@ export function QAVerification() {
               setSelectedId(queue[0]?.id ?? null);
             }} /> :
 
+          selected && selectedFull ?
+          <QAVerificationPanel issue={selectedFull} onOutcome={(type, issue) => setOutcome({ type, issue })} /> :
+
+          selected && !selectedMissing ?
+          <div className="animate-pulse space-y-4" aria-busy="true">
+              <div className="h-4 w-32 rounded bg-neutral-soft" />
+              <div className="h-6 w-3/4 rounded bg-neutral-soft" />
+              <div className="h-16 rounded bg-neutral-soft" />
+              <div className="h-24 rounded bg-neutral-soft" />
+            </div> :
+
           selected ?
-          <QAVerificationPanel issue={selected} onOutcome={(type, issue) => setOutcome({ type, issue })} /> :
+          <EmptyState icon={ClipboardCheckIcon} title={`Could not load ${selected.key}`} description="It may have been removed. Pick another item from the queue." /> :
 
           <EmptyState icon={ClipboardCheckIcon} title="Select an issue to verify" description="Pick an item from the queue to see the fix summary and verification steps." />
           }

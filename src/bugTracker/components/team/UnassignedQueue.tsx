@@ -3,13 +3,13 @@ import { CheckCircle2Icon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { relativeTime } from '../../utils/dates';
 import { IssueStatusBadge } from '../badges/IssueStatusBadge';
 import { SeverityBadge } from '../badges/SeverityBadge';
 import { Button } from '../ui/Button';
 
-export function UnassignedQueue({ issues, onAssign }: {issues: Issue[];onAssign: (issue: Issue) => void;}) {
+export function UnassignedQueue({ issues, onAssign }: {issues: IssueBase[];onAssign: (issue: IssueBase) => void;}) {
   const { getProject } = useBugTracker();
 
   if (!issues.length) {

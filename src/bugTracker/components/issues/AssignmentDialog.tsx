@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CheckIcon, SearchIcon } from 'lucide-react';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { priorities, workloadCapacity } from '../../data/trackerConfig';
-import type { Issue, Priority } from '../../types/bugTracker';
+import type { IssueBase, Priority } from '../../types/bugTracker';
 import { isOpenStatus } from '../../utils/workflow';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
@@ -17,7 +17,7 @@ export interface AssignmentResult {
 }
 
 interface AssignmentDialogProps {
-  issue: Issue | null;
+  issue: IssueBase | null;
   onClose: () => void;
   onConfirm: (result: AssignmentResult) => void;
 }

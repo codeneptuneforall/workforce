@@ -3,17 +3,17 @@ import { toast } from 'sonner';
 import { AssignmentDialog, type AssignmentResult } from '../components/issues/AssignmentDialog';
 import { TransitionDialog } from '../components/issues/TransitionDialog';
 import { useBugTracker } from '../contexts/BugTrackerContext';
-import type { Issue } from '../types/bugTracker';
+import type { IssueBase } from '../types/bugTracker';
 import type { WorkflowTransition } from '../utils/workflow';
 
 /** Shared flow for running workflow transitions, opening note/assignment dialogs when needed. */
 export function useIssueTransition() {
   const { runTransition, assignIssue, getEmployee } = useBugTracker();
-  const [pending, setPending] = useState<{issue: Issue;transition: WorkflowTransition;} | null>(null);
-  const [assigning, setAssigning] = useState<Issue | null>(null);
+  const [pending, setPending] = useState<{issue: IssueBase;transition: WorkflowTransition;} | null>(null);
+  const [assigning, setAssigning] = useState<IssueBase | null>(null);
 
   const startTransition = useCallback(
-    (issue: Issue, transition: WorkflowTransition) => {
+    (issue: IssueBase, transition: WorkflowTransition) => {
       if (transition.opensAssignment) {
         setAssigning(issue);
         return;

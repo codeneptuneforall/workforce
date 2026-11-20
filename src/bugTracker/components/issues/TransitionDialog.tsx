@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import type { WorkflowTransition } from '../../utils/workflow';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { TextField } from '../ui/TextField';
 
 interface TransitionDialogProps {
-  issue: Issue | null;
+  issue: IssueBase | null;
   transition: WorkflowTransition | null;
   onClose: () => void;
   onConfirm: (note: string) => void;

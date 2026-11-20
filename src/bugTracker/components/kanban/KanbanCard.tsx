@@ -3,7 +3,7 @@ import { AlertTriangleIcon, BanIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueSummary } from '../../types/bugTracker';
 import { isOverdue } from '../../utils/issueMetrics';
 import type { WorkflowTransition } from '../../utils/workflow';
 import { DueDateLabel } from '../badges/DueDateLabel';
@@ -12,13 +12,13 @@ import { SeverityBadge } from '../badges/SeverityBadge';
 import { Avatar } from '../ui/Avatar';
 
 interface KanbanCardProps {
-  issue: Issue;
+  issue: IssueSummary;
   transitions: WorkflowTransition[];
   dragging: boolean;
-  onDragStart: (issue: Issue) => void;
+  onDragStart: (issue: IssueSummary) => void;
   onDragEnd: () => void;
-  onMove: (issue: Issue, transition: WorkflowTransition) => void;
-  onAssign?: (issue: Issue) => void;
+  onMove: (issue: IssueSummary, transition: WorkflowTransition) => void;
+  onAssign?: (issue: IssueSummary) => void;
 }
 
 export function KanbanCard({ issue, transitions, dragging, onDragStart, onDragEnd, onMove, onAssign }: KanbanCardProps) {
@@ -54,9 +54,9 @@ export function KanbanCard({ issue, transitions, dragging, onDragStart, onDragEn
       </button>
       <p className="mt-1 truncate text-xs text-ink-subtle">{getProject(issue.projectId)?.name}</p>
 
-      {issue.attachments?.length > 0 && (
+      {issue.attachmentCount > 0 && (
         <div className="mt-2 flex gap-1.5 overflow-hidden">
-          {issue.attachments
+          {issue.attachmentPreview
             .filter((a) => a.kind === 'image')
             .slice(0, 3)
             .map((a) => (
@@ -67,9 +67,9 @@ export function KanbanCard({ issue, transitions, dragging, onDragStart, onDragEn
                 className="h-8 w-8 rounded border border-line object-cover"
               />
             ))}
-          {issue.attachments.length > 3 && (
+          {issue.attachmentCount > 3 && (
             <span className="flex h-8 w-8 items-center justify-center rounded border border-line bg-canvas text-[10px] text-ink-muted">
-              +{issue.attachments.length - 3}
+              +{issue.attachmentCount - 3}
             </span>
           )}
         </div>

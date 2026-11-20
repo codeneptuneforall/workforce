@@ -3,7 +3,7 @@ import { BanIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { relativeTime } from '../../utils/dates';
 import type { WorkflowTransition } from '../../utils/workflow';
 import { DueDateLabel } from '../badges/DueDateLabel';
@@ -14,9 +14,9 @@ import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 
 interface IssueQuickRowProps {
-  issue: Issue;
+  issue: IssueBase;
   quickAction?: WorkflowTransition;
-  onQuickAction: (issue: Issue, transition: WorkflowTransition) => void;
+  onQuickAction: (issue: IssueBase, transition: WorkflowTransition) => void;
 }
 
 const toneToVariant = { primary: 'primary', success: 'success', danger: 'danger-outline', neutral: 'secondary' } as const;

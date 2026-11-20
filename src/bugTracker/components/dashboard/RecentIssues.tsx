@@ -2,13 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes } from '../../data/navigation';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { relativeTime } from '../../utils/dates';
 import { IssueStatusBadge } from '../badges/IssueStatusBadge';
 import { SeverityBadge } from '../badges/SeverityBadge';
 import { Avatar } from '../ui/Avatar';
 
-export function RecentIssues({ issues }: {issues: Issue[];}) {
+export function RecentIssues({ issues }: {issues: IssueBase[];}) {
   const navigate = useNavigate();
   const { getEmployee, getProject } = useBugTracker();
   const recent = [...issues].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6);

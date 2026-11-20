@@ -503,6 +503,11 @@ BugTrackerIssueSchema.index({ projectId: 1 });
 BugTrackerIssueSchema.index({ status: 1 });
 BugTrackerIssueSchema.index({ assigneeId: 1 });
 BugTrackerIssueSchema.index({ reporterId: 1 });
+// Issue list is always sorted by updatedAt desc (optionally scoped to a project).
+BugTrackerIssueSchema.index({ updatedAt: -1 });
+BugTrackerIssueSchema.index({ projectId: 1, updatedAt: -1 });
+// "Assigned to me" / workload queries.
+BugTrackerIssueSchema.index({ assigneeId: 1, status: 1 });
 
 const BugTrackerNotificationSchema = new Schema(
   {

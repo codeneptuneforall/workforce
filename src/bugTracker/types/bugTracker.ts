@@ -70,6 +70,12 @@ export interface ActivityEntry {
   toStatus?: IssueStatus;
 }
 
+/** Activity entry from GET /overview/activity, tagged with its issue. */
+export interface ActivityFeedEntry extends ActivityEntry {
+  issueKey: string;
+  issueTitle: string;
+}
+
 export interface QAVerification {
   status: QAStatus;
   verifierId?: string;
@@ -118,6 +124,37 @@ export interface Issue {
   qa: QAVerification;
   resolution?: Resolution;
 }
+
+/**
+ * Fields only available on the full issue (GET /issues/:key). The shared issue
+ * list never carries these — use `useFullIssue` where they are needed.
+ */
+export type HeavyIssueField =
+'description' |
+'stepsToReproduce' |
+'expectedResult' |
+'actualResult' |
+'attachments' |
+'comments' |
+'activity' |
+'resolution';
+
+/** Light issue fields shared by full issues and list summaries. */
+export type IssueBase = Omit<Issue, HeavyIssueField>;
+
+/** Small derived fields the list sends instead of the heavy arrays. */
+export interface IssueSummaryFields {
+  commentCount: number;
+  /** Unique comment author ids (for "involved" checks). */
+  commentAuthorIds: string[];
+  attachmentCount: number;
+  /** First few image attachments (Kanban card thumbnails). */
+  attachmentPreview: Attachment[];
+  resolvedAt: string | null;
+}
+
+/** An item of the shared issue list (context `issues` / `scopedIssues`). */
+export type IssueSummary = IssueBase & IssueSummaryFields;
 
 export interface IssueDraft {
   title: string;

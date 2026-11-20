@@ -231,10 +231,30 @@ function resolveAttachmentPath(filename: string): string | null {
   return resolved;
 }
 
-/** Rate limiting (reuse express-rate-limit, already a dependency) */
+/**
+ * Rate limiting (reuse express-rate-limit, already a dependency).
+ *
+ * Limits are counted per signed-in user (requireAuth runs first), not per IP,
+ * so colleagues behind one office NAT don't share a budget. Reads and writes
+ * have separate budgets so normal browsing can't starve mutations.
+ */
+const perUserKey = (req: any): string => (req.user?.id ? `u:${req.user.id}` : `ip:${req.ip}`);
+
+/** GET endpoints: issue list/detail, directory lookups, notifications, downloads. */
+const readLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  keyGenerator: perUserKey,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' }
+});
+
+/** Issue create / edit / transition / delete, notification mark-read. */
 const issueLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 30,
+  keyGenerator: perUserKey,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many issue requests. Please slow down.' }
@@ -243,6 +263,7 @@ const issueLimiter = rateLimit({
 const commentLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 60,
+  keyGenerator: perUserKey,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many comments. Please slow down.' }
@@ -251,26 +272,102 @@ const commentLimiter = rateLimit({
 const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 20,
+  keyGenerator: perUserKey,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many uploads. Please slow down.' }
 });
 
-/** Normalize a Mongoose lean issue document into the frontend contract (id = _id). */
+/** Number of attachments included in list summaries (Kanban card thumbnails). */
+const ATTACHMENT_PREVIEW_COUNT = 3;
+
+/**
+ * Normalize a Mongoose lean issue document into the frontend contract (id = _id)
+ * and add the summary fields the issue list relies on:
+ * commentCount, commentAuthorIds, attachmentCount, attachmentPreview, resolvedAt.
+ * Docs that already carry them (from the list aggregation) are left as is.
+ */
 function toApiIssue(doc: any): any {
   if (!doc) return doc;
   const out = { ...doc };
   if (out._id !== undefined && out.id === undefined) out.id = out._id;
+  if (Array.isArray(out.comments)) {
+    out.commentCount = out.comments.length;
+    out.commentAuthorIds = [...new Set(out.comments.map((c: any) => c.authorId))];
+  }
+  if (Array.isArray(out.attachments)) {
+    out.attachmentCount = out.attachments.length;
+    // First few *image* attachments — what the Kanban card renders as thumbnails.
+    out.attachmentPreview = out.attachments.filter((a: any) => a.kind === 'image').slice(0, ATTACHMENT_PREVIEW_COUNT);
+  }
+  if (out.resolvedAt === undefined) out.resolvedAt = out.resolution?.resolvedAt ?? null;
   return out;
+}
+
+/** Fields only sent with the full issue (GET /issues/:key, mutation responses). */
+const HEAVY_ISSUE_FIELDS = [
+  'description', 'stepsToReproduce', 'expectedResult', 'actualResult',
+  'attachments', 'comments', 'activity', 'resolution'
+] as const;
+
+/**
+ * List-summary form of an issue: toApiIssue() derived fields, heavy fields removed.
+ * Used for socket broadcasts so every connected client gets only what the
+ * shared issue list needs.
+ */
+function toIssueSummary(doc: any): any {
+  const out = toApiIssue(doc);
+  if (!out) return out;
+  for (const field of HEAVY_ISSUE_FIELDS) delete out[field];
+  return out;
+}
+
+/**
+ * Aggregation $project for GET /issues: light fields plus derived summary
+ * fields computed in MongoDB, so heavy arrays never leave the database.
+ */
+const ISSUE_SUMMARY_PROJECTION = {
+  key: 1, title: 1, projectId: 1, type: 1, severity: 1, priority: 1, status: 1,
+  assigneeId: 1, reporterId: 1, createdAt: 1, updatedAt: 1, dueDate: 1,
+  feature: 1, environment: 1, labels: 1, relatedIssueKeys: 1, blocked: 1,
+  blockedReason: 1, submittedForQaAt: 1, fixSummary: 1, reopenReason: 1, qa: 1,
+  commentCount: { $size: { $ifNull: ['$comments', []] } },
+  commentAuthorIds: { $setUnion: [{ $ifNull: ['$comments.authorId', []] }, []] },
+  attachmentCount: { $size: { $ifNull: ['$attachments', []] } },
+  attachmentPreview: {
+    $slice: [
+      { $filter: { input: { $ifNull: ['$attachments', []] }, as: 'a', cond: { $eq: ['$$a.kind', 'image'] } } },
+      ATTACHMENT_PREVIEW_COUNT
+    ]
+  },
+  resolvedAt: { $ifNull: ['$resolution.resolvedAt', null] }
+};
+
+/**
+ * MongoDB filter for the issues a user may see in lists and feeds.
+ * admin / qa: everything. Others: issues they are assigned to or reported, plus
+ * (for employees) issues in Workforce projects they are a member of.
+ * Shared by GET /issues and GET /overview/activity so both stay in sync.
+ */
+async function issueVisibilityMatch(user: AuthUser, context: BugTrackerContext): Promise<Record<string, unknown>> {
+  const { role: userRole, id: btId } = context;
+  if (userRole === 'admin' || userRole === 'qa') return {};
+  let projectIds: string[] = [];
+  if (user.role === 'employee' && user.employeeId) {
+    const projects = await ProjectModel.find({ employeeIds: user.employeeId }, { _id: 1 }).lean();
+    projectIds = projects.map((p: any) => String(p._id));
+  }
+  const or: Record<string, unknown>[] = [{ assigneeId: btId }, { reporterId: btId }];
+  if (projectIds.length) or.push({ projectId: { $in: projectIds } });
+  return { $or: or };
 }
 
 /** Issue list with optional filters */
 
-bugTrackerRouter.get('/issues', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/issues', readLimiter, async (_req, res) => {
   const { projectId, status, assigneeId, reporterId, search } = _req.query as Record<string, string> | undefined ?? {};
   const context = await getBugTrackerContext(_req.user!);
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity. Contact an administrator.' }); return; }
-  const { role: userRole, id: btId } = context;
   const filter: Record<string, unknown> = {};
   if (projectId) filter.projectId = projectId;
   if (status) filter.status = status;
@@ -278,34 +375,77 @@ bugTrackerRouter.get('/issues', issueLimiter, async (_req, res) => {
   if (reporterId) filter.reporterId = reporterId;
   if (search) filter.$text = { $search: search };
 
-  const issues = await BugTrackerIssueModel.find(filter).sort({ updatedAt: -1 }).lean();
+  // Visibility is applied in the query, so invisible issues are never loaded.
+  const visibility = await issueVisibilityMatch(_req.user!, context);
+  const query = Object.keys(visibility).length ? { $and: [filter, visibility] } : filter;
 
-  let visible = issues;
-  if (userRole !== 'admin' && userRole !== 'qa') {
-    // Resolve project memberships from Workforce.
-    let projectIds: string[] = [];
-    if (_req.user!.role === 'employee' && _req.user!.employeeId) {
-      const projects = await ProjectModel.find({ employeeIds: _req.user!.employeeId }).lean();
-      projectIds = projects.map((p: any) => p._id);
-    }
-    visible = issues.filter((issue: any) =>
-      issue.assigneeId === btId ||
-      issue.reporterId === btId ||
-      projectIds.includes(issue.projectId)
-    );
-  }
+  // Summary list: heavy fields (description, steps, comments, activity,
+  // attachments, resolution) never leave MongoDB — the derived summary fields
+  // are computed in the projection. Full issues come from GET /issues/:key.
+  const issues = await BugTrackerIssueModel.aggregate([
+    { $match: query },
+    { $sort: { updatedAt: -1 } },
+    { $project: ISSUE_SUMMARY_PROJECTION }
+  ]);
 
-  res.json({ issues: visible.map(toApiIssue) });
+  res.json({ issues: issues.map(toApiIssue) });
+});
+
+/**
+ * Recent activity feed for the Overview page.
+ * Query: projectId (optional), since=YYYY-MM-DD (issues created on/after), limit (default 8, max 50).
+ * Returns the newest activity entries across visible issues, without loading
+ * full issue documents into the client.
+ */
+bugTrackerRouter.get('/overview/activity', readLimiter, async (_req, res) => {
+  const { projectId, since, limit } = _req.query as Record<string, string | undefined>;
+  const context = await getBugTrackerContext(_req.user!);
+  if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity. Contact an administrator.' }); return; }
+
+  const filter: Record<string, unknown> = {};
+  if (projectId && projectId !== 'all') filter.projectId = String(projectId);
+  if (since && /^\d{4}-\d{2}-\d{2}$/.test(since)) filter.createdAt = { $gte: since };
+  const visibility = await issueVisibilityMatch(_req.user!, context);
+  const match = Object.keys(visibility).length ? { $and: [filter, visibility] } : filter;
+  const max = Math.min(Math.max(Number.parseInt(String(limit ?? ''), 10) || 8, 1), 50);
+
+  const activity = await BugTrackerIssueModel.aggregate([
+    { $match: match },
+    { $project: { _id: 0, key: 1, title: 1, activity: 1 } },
+    { $unwind: '$activity' },
+    { $sort: { 'activity.createdAt': -1 } },
+    { $limit: max },
+    { $project: {
+        id: '$activity.id',
+        actorId: '$activity.actorId',
+        message: '$activity.message',
+        createdAt: '$activity.createdAt',
+        toStatus: '$activity.toStatus',
+        issueKey: '$key',
+        issueTitle: '$title'
+    } }
+  ]);
+
+  res.json({ activity });
 });
 
 /** Single issue by key � visibility checked server-side. */
-bugTrackerRouter.get('/issues/:key', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/issues/:key', readLimiter, async (_req, res) => {
   const issue = await BugTrackerIssueModel.findOne({ key: _req.params.key }).lean();
   if (!issue) { res.status(404).json({ error: 'Issue not found.' }); return; }
   const context = await getBugTrackerContext(_req.user!);
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
   const { role: userRole, id: btId } = context;
-  if (!canViewIssue(userRole, btId, issue)) {
+  // Same rule as the issue list: anything the list shows a user (including
+  // issues in their Workforce projects) must also open in Issue Detail, which
+  // always loads through this endpoint.
+  let allowed = canViewIssue(userRole, btId, issue);
+  if (!allowed) {
+    const visibility = await issueVisibilityMatch(_req.user!, context);
+    allowed = Object.keys(visibility).length === 0 ||
+      (await BugTrackerIssueModel.exists({ $and: [{ key: issue.key }, visibility] })) !== null;
+  }
+  if (!allowed) {
     res.status(403).json({ error: 'You do not have permission to view this issue.' }); return;
   }
   res.json({ issue: toApiIssue(issue) });
@@ -366,7 +506,7 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
   }
 
   res.status(201).json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:created', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:created', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Update an issue field(s) � edit permission checked server-side. */
@@ -410,7 +550,7 @@ bugTrackerRouter.patch('/issues/:key', issueLimiter, async (_req, res) => {
   }
 
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Workflow transition � role and state validated server-side. */
@@ -505,7 +645,7 @@ bugTrackerRouter.post('/issues/:key/transition', issueLimiter, async (_req, res)
   }
 
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:transitioned', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:transitioned', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Add a comment � any authenticated user may comment on a visible issue. */
@@ -541,8 +681,8 @@ bugTrackerRouter.post('/issues/:key/comments', commentLimiter, async (_req, res)
   }
 
   res.status(201).json({ comment });
-  io.emit('issue:commented', { issueKey: _req.params.key, comment });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:commented', { issueKey: _req.params.key, comment: { id: comment.id, authorId: comment.authorId, createdAt: comment.createdAt } });
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Delete an issue � admin, manager, or the reporter can delete their own issue. */
@@ -579,7 +719,7 @@ bugTrackerRouter.post('/issues/:key/attachments', uploadLimiter, async (_req, re
   issue.updatedAt = new Date().toISOString();
   await issue.save();
   res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Upload a file attachment to an issue (multipart). */
@@ -619,13 +759,13 @@ bugTrackerRouter.post('/issues/:key/attachments/upload', uploadLimiter, btUpload
   try { await writeAuditEntry(_req.user!, 'Attachment uploaded', 'BugTrackerIssue', issue.key, undefined, file.originalname); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
 
   res.status(201).json({ attachment });
-  io.emit('issue:updated', toApiIssue(issue.toObject({ virtuals: true })));
+  io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
 /** Download/preview a file attachment � authenticated, authorization-checked.
  *  Serves the file only if the requesting user can view the associated issue.
  *  Path traversal is prevented by resolving through path.basename. */
-bugTrackerRouter.get('/issues/:key/attachments/download', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/issues/:key/attachments/download', readLimiter, async (_req, res) => {
   const { filename } = _req.query as { filename?: string };
   if (!filename) { res.status(400).json({ error: 'Missing filename.' }); return; }
 
@@ -668,7 +808,7 @@ bugTrackerRouter.get('/issues/:key/attachments/download', issueLimiter, async (_
 });
 
 /** Employee directory for bug tracker � uses existing Workforce employee data. */
-bugTrackerRouter.get('/employees', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/employees', readLimiter, async (_req, res) => {
   const wfEmployees = await EmployeeModel.find({ status: 'Active' }).sort({ name: 1 }).lean();
   const projects = await ProjectModel.find({}).lean();
   const allUsers = await UserModel.find({ active: true }).lean();
@@ -728,7 +868,7 @@ bugTrackerRouter.get('/employees', issueLimiter, async (_req, res) => {
 });
 
 /** Projects for bug tracker � uses Workforce project data. */
-bugTrackerRouter.get('/projects', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/projects', readLimiter, async (_req, res) => {
   const projects = await ProjectModel.find({}).sort({ name: 1 }).lean();
   const mapped = projects.map((p: any) => ({
     id: p._id,
@@ -740,7 +880,7 @@ bugTrackerRouter.get('/projects', issueLimiter, async (_req, res) => {
 });
 
 /** Teams for bug tracker � uses Workforce team data. */
-bugTrackerRouter.get('/teams', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/teams', readLimiter, async (_req, res) => {
   const teams = await TeamModel.find({}).sort({ name: 1 }).lean();
   const mapped = teams.map((t: any) => ({
     id: t._id,
@@ -751,7 +891,7 @@ bugTrackerRouter.get('/teams', issueLimiter, async (_req, res) => {
 });
 
 /** Notifications for the signed-in user � Workforce notifications merged with Bug Tracker notifications. */
-bugTrackerRouter.get('/notifications', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/notifications', readLimiter, async (_req, res) => {
   const context = await getBugTrackerContext(_req.user!);
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
   const btNotifications = await BugTrackerNotificationModel.find({ recipientId: _req.user!.id }).sort({ createdAt: -1 }).lean();

@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
-import type { Issue, IssueStatus } from '../../types/bugTracker';
+import type { IssueSummary, IssueStatus } from '../../types/bugTracker';
 import { isOverdue } from '../../utils/issueMetrics';
 import { severityRank, statusStyles } from '../../utils/issueStyles';
 import { ALL_STATUSES, findTransitionTo, getAvailableTransitions, type WorkflowTransition } from '../../utils/workflow';
 import { KanbanCard } from './KanbanCard';
 
 interface KanbanBoardProps {
-  issues: Issue[];
-  onMove: (issue: Issue, transition: WorkflowTransition) => void;
-  onAssign?: (issue: Issue) => void;
+  issues: IssueSummary[];
+  onMove: (issue: IssueSummary, transition: WorkflowTransition) => void;
+  onAssign?: (issue: IssueSummary) => void;
 }
 
 export function KanbanBoard({ issues, onMove, onAssign }: KanbanBoardProps) {
   const { currentUser } = useBugTracker();
-  const [dragging, setDragging] = useState<Issue | null>(null);
+  const [dragging, setDragging] = useState<IssueSummary | null>(null);
   const [overColumn, setOverColumn] = useState<IssueStatus | null>(null);
   const [mobileColumn, setMobileColumn] = useState<IssueStatus>('In Progress');
 
