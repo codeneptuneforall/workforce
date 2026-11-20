@@ -23,10 +23,10 @@ Events ("ran out of memory"), Usage → Bandwidth, and logs around `[pdfBrowser]
 
 - [ ] **H1. Auto-submit cron creates duplicate timesheets on every server start**
   - Cause: [server/cron/autoSubmitTimesheets.ts](../server/cron/autoSubmitTimesheets.ts) only checked **Draft** timesheets before creating one, so every week already Submitted/Approved got a new copy on each restart (12 created in the 2026-11-20 deploy). The `{employeeId, weekStart}` index is not unique, so MongoDB allowed it.
-  - [ ] Code fix committed (check all timesheets + re-check before insert)
-  - [ ] Deployed to Render
-  - [ ] Existing duplicates cleaned with [server/fix-duplicate-timesheets.ts](../server/fix-duplicate-timesheets.ts) (dry run first, then `--apply`)
-  - [ ] Later: make the `{employeeId, weekStart}` index unique, once there are no duplicates left
+  - [x] Code fix committed (`6cb8aa2`: check all timesheets + re-check before insert)
+  - [x] Deployed to Render (2026-11-20, `/api/health` commit `6cb8aa2`)
+  - [x] Existing duplicates cleaned with [server/fix-duplicate-timesheets.ts](../server/fix-duplicate-timesheets.ts) on 2026-11-20: **1,073 deleted, 14 kept**, 0 left for review. Covered both history formats the cron has written (old `message/actorId` and new `action/by`). CN-UX-001 week 2026-11-02 kept its Approved copy.
+  - [ ] Later: make the `{employeeId, weekStart}` index unique, now that there are no duplicates left
 
 ## Phase 1: Stop the crashes (low risk)
 

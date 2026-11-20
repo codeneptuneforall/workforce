@@ -11,6 +11,8 @@
  *     (status Submitted, a single "Auto-submitted by system" history entry).
  *   - REPORTS anything else for manual review and never deletes it.
  *
+ * Add --verbose to list every timesheet id.
+ *
  * Dry run by default (changes nothing):
  *   node ./node_modules/tsx/dist/cli.mjs server/fix-duplicate-timesheets.ts
  * Apply:
@@ -32,13 +34,26 @@ const STATUS_RANK: Record<string, number> = {
 
 type Ts = { _id: string; employeeId: string; weekStart: string; status: string; submittedAt?: string; history?: any[] };
 
+/**
+ * An auto-submit history entry in either format the cron has written:
+ *   since 2026-11-16 (583ec57): { action, by: 'System', at }
+ *   2026-11-01 → 11-16 (6c8ee3b): { message, actorId: 'system', createdAt }
+ */
+function isAutoEntry(entry: any): boolean {
+  if (!entry) return false;
+  const newFormat = entry.action === AUTO_ACTION && entry.by === 'System';
+  const oldFormat = entry.message === AUTO_ACTION && entry.actorId === 'system';
+  return newFormat || oldFormat;
+}
+
 function isUntouchedAuto(ts: Ts): boolean {
   const history = ts.history ?? [];
-  return ts.status === 'Submitted' && history.length === 1 && history[0]?.action === AUTO_ACTION && history[0]?.by === 'System';
+  return ts.status === 'Submitted' && history.length === 1 && isAutoEntry(history[0]);
 }
 
 function createdAt(ts: Ts): string {
-  return ts.history?.[0]?.at ?? ts.submittedAt ?? '';
+  const first = ts.history?.[0];
+  return first?.at ?? first?.createdAt ?? ts.submittedAt ?? '';
 }
 
 /** Manual timesheets first (best status, then most history), then the oldest. */
@@ -67,9 +82,17 @@ async function main(): Promise<void> {
     groups.get(key)!.push(ts);
   }
 
+  const verbose = process.argv.includes('--verbose');
   const toDelete: Ts[] = [];
   const manualReview: Array<{ key: string; group: Ts[] }> = [];
+  /** How the REVIEW rows were created, so unknown auto-submit variants can be spotted. */
+  const reviewSignatures = new Map<string, { count: number; example: Ts }>();
+  const signature = (t: Ts) => {
+    const first = t.history?.[0];
+    return `status=${t.status} | history=${t.history?.length ?? 0} | by=${first?.by ?? first?.actorId ?? '-'} | action=${first?.action ?? first?.message ?? '-'}`;
+  };
 
+  console.log('\nEMPLOYEE|WEEK                     TOTAL  KEEP  DELETE  REVIEW');
   for (const [key, group] of groups) {
     if (group.length < 2) continue;
     const keeper = pickKeeper(group);
@@ -77,12 +100,27 @@ async function main(): Promise<void> {
     const deletable = extras.filter(isUntouchedAuto);
     const notDeletable = extras.filter((t) => !isUntouchedAuto(t));
     toDelete.push(...deletable);
+    for (const t of notDeletable) {
+      const sig = signature(t);
+      const entry = reviewSignatures.get(sig);
+      if (entry) entry.count++;
+      else reviewSignatures.set(sig, { count: 1, example: t });
+    }
 
-    console.log(`\n${key}  (${group.length} timesheets)`);
-    console.log(`  KEEP    ${keeper._id}  ${keeper.status}  history=${keeper.history?.length ?? 0}`);
-    for (const t of deletable) console.log(`  DELETE  ${t._id}  ${t.status}  (untouched auto-submit, ${createdAt(t)})`);
-    for (const t of notDeletable) console.log(`  REVIEW  ${t._id}  ${t.status}  history=${t.history?.length ?? 0}  (not auto-created, left as is)`);
+    console.log(`${key.padEnd(34)} ${String(group.length).padStart(5)}  ${'1'.padStart(4)}  ${String(deletable.length).padStart(6)}  ${String(notDeletable.length).padStart(6)}   keep=${keeper._id} (${signature(keeper)})`);
+    if (verbose) {
+      for (const t of deletable) console.log(`    DELETE  ${t._id}  (untouched auto-submit, ${createdAt(t)})`);
+      for (const t of notDeletable) console.log(`    REVIEW  ${t._id}  ${signature(t)}`);
+    }
     if (notDeletable.length) manualReview.push({ key, group });
+  }
+
+  if (reviewSignatures.size) {
+    console.log('\nREVIEW rows grouped by how they were created (left untouched):');
+    for (const [sig, { count, example }] of [...reviewSignatures].sort((a, b) => b[1].count - a[1].count)) {
+      console.log(`  ${String(count).padStart(5)} x  ${sig}`);
+      console.log(`         e.g. ${example._id}  at=${example.history?.[0]?.at ?? '-'}  submittedAt=${example.submittedAt ?? '-'}`);
+    }
   }
 
   console.log('\n────────────────────────────────────────');
