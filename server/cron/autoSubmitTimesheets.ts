@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { EmployeeModel } from '../models';
 import { TimesheetModel } from '../models';
 import { SessionModel } from '../models';
+import { invalidateCache } from '../store';
 import { weekStartKey, weekDates, todayKey } from '@shared/domain/time';
 
 /**
@@ -149,6 +150,9 @@ async function autoSubmitTimesheets(): Promise<{ submitted: number; skipped: num
       );
     }
 
+    // These writes bypass the state cache. Drop it so a later mutation can't write the
+    // stale Draft timesheet back over the Submitted one.
+    if (submitted > 0) invalidateCache();
     console.log(`[auto-submit] Complete: ${submitted} submitted, ${skipped} skipped`);
     return { submitted, skipped };
   } catch (err) {

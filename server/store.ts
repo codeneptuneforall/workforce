@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { config } from './config';
 import type { AppState, AppNotification, AuditEntry, Employee, Holiday, Leave, PayrollRun, Payslip, Project, SalaryStructure, Settings, ShortfallReview, Task, Team, Timesheet, WfhHistory, WorkSession } from '../shared/types';
 import { LEARNING_PROJECT_ID, learningProject } from '../shared/domain/learning';
 import { pauseTimer } from '../shared/domain/timerMutations';
@@ -32,6 +33,12 @@ import {
  */
 
 let cache: AppState | null = null;
+/** When `cache` was last rebuilt from MongoDB. Mutations do not reset it. */
+let loadedAt = 0;
+/** A reload in progress, shared by every caller that needs one. */
+let loading: Promise<AppState> | null = null;
+/** Bumped by `invalidateCache()` so a reload that started earlier is not cached as fresh. */
+let generation = 0;
 
 const strip = <T>(doc: any): T => {
   const { _id, __v, ...rest } = doc ?? {};
@@ -121,14 +128,42 @@ export function getCachedState(): AppState | null {
   return cache;
 }
 
+/**
+ * The current state, served from memory.
+ *
+ * The cache is rebuilt from MongoDB when it is empty (first request, or after
+ * `invalidateCache()`) or older than `config.stateCacheTtlMs`. Concurrent callers share
+ * one rebuild, so a burst of polls never triggers more than one full read.
+ */
 export async function ensureLoaded(): Promise<AppState> {
-  if (!cache) {
-    cache = await loadState();
-    cache = await ensureLearningProject(cache);
+  let state = cache;
+  if (!state || Date.now() - loadedAt > config.stateCacheTtlMs) {
+    state = await reload();
   }
   // Auto-pause any running sessions during break hours (IST).
-  cache = await autoPauseDuringBreaks(cache);
-  return cache;
+  const paused = await autoPauseDuringBreaks(state);
+  if (paused !== state && cache === state) cache = paused;
+  return paused;
+}
+
+function reload(): Promise<AppState> {
+  if (!loading) {
+    const startedFor = generation;
+    const started = Date.now();
+    const pending = (async () => {
+      const fresh = await ensureLearningProject(await loadState());
+      if (startedFor === generation) {
+        cache = fresh;
+        loadedAt = Date.now();
+      }
+      console.log(`[store] state reloaded in ${Date.now() - started}ms`);
+      return fresh;
+    })().finally(() => {
+      if (loading === pending) loading = null;
+    });
+    loading = pending;
+  }
+  return loading;
 }
 
 /** Pauses every Working session when the current IST time falls inside a break window.
@@ -162,13 +197,23 @@ async function ensureLearningProject(state: AppState): Promise<AppState> {
   return { ...state, projects: [...state.projects, project] };
 }
 
+/**
+ * Replace the cached state after a mutation has been persisted.
+ *
+ * Skipped when the cache was invalidated while the mutation ran: MongoDB already holds
+ * the mutation, and the next read rebuilds from it. `loadedAt` is left alone so the TTL
+ * still bounds how long the cache can drift from the database.
+ */
 export function setCachedState(state: AppState): void {
+  if (cache === null) return;
   cache = state;
 }
 
 /** Drop the in-memory cache so the next state read re-fetches from MongoDB. */
 export function invalidateCache(): void {
+  generation++;
   cache = null;
+  loading = null;
 }
 
 /** Writes the difference between two snapshots to MongoDB. */
@@ -242,5 +287,5 @@ export async function clearAll(): Promise<void> {
     WfhHistoryModel.deleteMany({}),
     SettingsModel.deleteMany({})
   ]);
-  cache = null;
+  invalidateCache();
 }

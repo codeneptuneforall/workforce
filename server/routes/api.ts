@@ -6,7 +6,7 @@ import { runCommand } from '../../shared/domain/commands';
 import { provisionEmployeeAccount, resetEmployeePassword, setEmployeeAccountActive } from '../accounts';
 import { requireAuth, requirePasswordChanged, requireRole } from '../auth';
 import { EmployeeModel, UserModel, PayslipModel, WfhHistoryModel } from '../models';
-import { ensureLoaded, loadState, persistDiff, setCachedState, invalidateCache } from '../store';
+import { ensureLoaded, persistDiff, setCachedState, invalidateCache } from '../store';
 import { config } from '../config';
 import { withPdfBrowser } from '../pdfBrowser';
 import { monthLabel } from '../../shared/domain/payroll';
@@ -31,9 +31,16 @@ function serialise<T>(task: () => Promise<T>): Promise<T> {
 
 /** The full application state, filtered for the signed-in account. */
 apiRouter.get('/state', requireAuth, requirePasswordChanged, async (req, res) => {
-  const state = await loadState();
-  setCachedState(state);
-  res.json({ state: projectState(state, req.user!) });
+  try {
+    // Served from the in-memory cache. Polling every 15s per tab used to reload the
+    // whole database on each call; now a full read happens at most once per TTL.
+    // Serialised so it never runs concurrently with a mutation.
+    const state = await serialise(() => ensureLoaded());
+    res.json({ state: projectState(state, req.user!) });
+  } catch (error) {
+    console.error('[state] load failed:', error instanceof Error ? error.message : error);
+    if (!res.headersSent) res.status(503).json({ error: 'State is temporarily unavailable. Please retry.' });
+  }
 });
 
 /**

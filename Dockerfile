@@ -34,5 +34,7 @@ RUN npm run build
 # Expose the port the app runs on
 EXPOSE 10000
 
-# Start the server
-CMD ["node", "./node_modules/tsx/dist/cli.mjs", "server/index.ts"]
+# Start the server from the compiled bundle (dist/server/index.js) built above.
+# Running plain JavaScript avoids tsx compiling TypeScript at runtime, which used
+# extra memory and slowed startup.
+CMD ["node", "--enable-source-maps", "dist/server/index.js"]
