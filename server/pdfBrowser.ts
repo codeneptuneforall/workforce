@@ -10,7 +10,8 @@
  *      so a small Render instance does not run out of memory and get its
  *      Chromium process killed while rendering.
  *
- * Lifecycle: launched lazily on first request, closed on server shutdown.
+ * Lifecycle: launched lazily on first request, closed after PDF_BROWSER_IDLE_MS
+ * (default 2 min) without renders, and closed on server shutdown.
  */
 import { chromium, type Browser, type BrowserContext } from 'playwright';
 
@@ -55,6 +56,39 @@ function maxConcurrency(): number {
   return Number.isFinite(configured) && configured >= 1 ? Math.floor(configured) : 1;
 }
 
+/**
+ * How long the warm browser may sit unused before it is closed, in ms.
+ * Chromium holds ~150–300 MB while open; payslip downloads are bursty, so keeping
+ * it alive between bursts wastes memory a small instance cannot spare.
+ */
+function idleCloseMs(): number {
+  const configured = Number(process.env.PDF_BROWSER_IDLE_MS);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 120_000;
+}
+
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearIdleTimer(): void {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+}
+
+function scheduleIdleClose(): void {
+  clearIdleTimer();
+  if (!sharedBrowser && !sharedLaunch) return;
+  idleTimer = setTimeout(() => {
+    idleTimer = null;
+    if (activeRenders > 0 || waiting.length > 0) return;
+    if (!sharedBrowser && !sharedLaunch) return;
+    console.log('[pdfBrowser] closing idle Chromium');
+    void discardSharedBrowser();
+  }, idleCloseMs());
+  // Never keep the process alive just for this timer.
+  idleTimer.unref?.();
+}
+
 let activeRenders = 0;
 const waiting: Array<() => void> = [];
 
@@ -63,12 +97,14 @@ async function withRenderSlot<T>(task: () => Promise<T>): Promise<T> {
     await new Promise<void>((resolve) => waiting.push(resolve));
   }
   activeRenders++;
+  clearIdleTimer();
   try {
     return await task();
   } finally {
     activeRenders--;
     const next = waiting.shift();
     if (next) next();
+    else if (activeRenders === 0) scheduleIdleClose();
   }
 }
 
@@ -171,6 +207,7 @@ export async function withPdfBrowser<T>(task: (context: BrowserContext) => Promi
 
 /** Close the warm browser on server shutdown. */
 export async function disposePdfBrowser(): Promise<void> {
+  clearIdleTimer();
   try {
     if (sharedLaunch) await sharedLaunch.catch(() => undefined);
   } finally {
