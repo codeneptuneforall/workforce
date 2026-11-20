@@ -3,9 +3,10 @@ import { InboxIcon } from 'lucide-react';
 import { IssueQuickRow } from '../../components/issues/IssueQuickRow';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueSummary } from '../../types/bugTracker';
 import { daysFromToday } from '../../utils/dates';
 import { isOverdue } from '../../utils/issueMetrics';
 import { severityRank } from '../../utils/issueStyles';
@@ -22,14 +23,14 @@ const emptyCopy: Record<TabId, {title: string;description: string;}> = {
 };
 
 export function MyIssues() {
-  const { scopedIssues, currentUser, permissions } = useBugTracker();
+  const { scopedIssues, currentUser, permissions, loading, issuesLoading } = useBugTracker();
   const { startTransition, dialogs } = useIssueTransition();
   const [tab, setTab] = useState<TabId>(currentUser.role === 'reporter' ? 'reported' : currentUser.role === 'qa' ? 'qa' : 'assigned');
 
-  const involved = (i: Issue) => i.assigneeId === currentUser.id || i.reporterId === currentUser.id || i.comments.some((c) => c.authorId === currentUser.id);
+  const involved = (i: IssueSummary) => i.assigneeId === currentUser.id || i.reporterId === currentUser.id || i.commentAuthorIds.includes(currentUser.id);
 
   const lists = useMemo(() => {
-    const bySeverity = (a: Issue, b: Issue) => severityRank[a.severity] - severityRank[b.severity];
+    const bySeverity = (a: IssueSummary, b: IssueSummary) => severityRank[a.severity] - severityRank[b.severity];
     return {
       assigned: scopedIssues.filter((i) => i.assigneeId === currentUser.id && isOpenStatus(i.status)).sort(bySeverity),
       reported: scopedIssues.filter((i) => i.reporterId === currentUser.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
@@ -64,6 +65,8 @@ export function MyIssues() {
 
 
   const current = lists[tab];
+
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="My issues" />;
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 sm:px-6">

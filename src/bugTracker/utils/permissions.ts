@@ -1,4 +1,4 @@
-import type { Employee, Issue, Role, RolePermissions } from '../types/bugTracker';
+import type { Employee, IssueBase, Role, RolePermissions } from '../types/bugTracker';
 
 // Prototype permission model used to preview role-dependent UI.
 // Real authorization must come from Workforce — never rely on this client-side map.
@@ -10,13 +10,13 @@ export const rolePermissions: Record<Role, RolePermissions> = {
   reporter: { manageSettings: false, triage: false, assign: false, setPriority: false, viewTeam: false, viewQAQueue: false, verifyQA: false, viewReports: false, editAnyIssue: false }
 };
 
-export function canViewIssue(issue: Issue, user: Employee): boolean {
+export function canViewIssue(issue: IssueBase, user: Employee): boolean {
   if (user.role === 'admin' || user.role === 'qa') return true;
   if (user.role === 'reporter') return issue.reporterId === user.id;
   return user.projectIds.includes(issue.projectId) || issue.reporterId === user.id || issue.assigneeId === user.id;
 }
 
-export function canEditIssue(issue: Issue, user: Employee): boolean {
+export function canEditIssue(issue: IssueBase, user: Employee): boolean {
   if (rolePermissions[user.role].editAnyIssue) return true;
   // Only the reporter may edit their own issue while it is still New.
   // Developers/QA change status via transitions (start / submit-qa / pass-qa etc.),

@@ -3,6 +3,7 @@ import { UnassignedQueue } from '../../components/team/UnassignedQueue';
 import { WorkloadTable } from '../../components/team/WorkloadTable';
 import { AccessRestricted } from '../../components/ui/AccessRestricted';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { Panel } from '../../components/ui/Panel';
 import { SelectField } from '../../components/ui/SelectField';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
@@ -13,7 +14,7 @@ import { severityRank } from '../../utils/issueStyles';
 import { isOpenStatus } from '../../utils/workflow';
 
 export function TeamAssignments() {
-  const { permissions, teams, employees, scopedIssues } = useBugTracker();
+  const { permissions, teams, employees, scopedIssues, loading, issuesLoading } = useBugTracker();
   const { openAssignment, dialogs } = useIssueTransition();
   const [teamId, setTeamId] = useState('');
 
@@ -27,6 +28,7 @@ export function TeamAssignments() {
   );
 
   if (!permissions.viewTeam) return <AccessRestricted area="Team & Assignments" />;
+  if (loading || issuesLoading) return <PageLoadingSkeleton title="Team & assignments" />;
 
   const overCapacity = members.filter((m) => openTeamIssues.filter((i) => i.assigneeId === m.id).length > workloadCapacity).length;
   const stats = [

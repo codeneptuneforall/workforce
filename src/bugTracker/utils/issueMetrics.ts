@@ -1,12 +1,12 @@
-import type { Issue } from '../types/bugTracker';
+import type { IssueBase } from '../types/bugTracker';
 import { daysFromToday } from './dates';
 import { isOpenStatus, QA_STATUSES } from './workflow';
 
-export function isOverdue(issue: Issue): boolean {
+export function isOverdue(issue: IssueBase): boolean {
   return Boolean(issue.dueDate) && isOpenStatus(issue.status) && daysFromToday(issue.dueDate as string) < 0;
 }
 
-export function dueLabel(issue: Issue): {text: string;tone: 'danger' | 'warning' | 'muted';} {
+export function dueLabel(issue: IssueBase): {text: string;tone: 'danger' | 'warning' | 'muted';} {
   if (!issue.dueDate) return { text: 'No due date', tone: 'muted' };
   if (!isOpenStatus(issue.status)) return { text: `Due ${issue.dueDate.slice(5).replace('-', '/')}`, tone: 'muted' };
   const days = daysFromToday(issue.dueDate);
@@ -27,7 +27,7 @@ export interface IssueMetrics {
   assignedToMe: number;
 }
 
-export function computeIssueMetrics(list: Issue[], userId: string): IssueMetrics {
+export function computeIssueMetrics(list: IssueBase[], userId: string): IssueMetrics {
   return {
     total: list.length,
     open: list.filter((i) => isOpenStatus(i.status)).length,

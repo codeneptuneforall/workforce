@@ -12,6 +12,7 @@ import type {
   Issue,
   IssueDraft,
   IssueEditablePatch,
+  IssueSummary,
   Priority,
   Project,
   Role,
@@ -20,6 +21,7 @@ import type {
 '../types/bugTracker';
 import { nowIso } from '../utils/dates';
 import { createId } from '../utils/issueService';
+import { toIssueSummary } from '../utils/issueSummary';
 import { canViewIssue, rolePermissions } from '../utils/permissions';
 import { getTransition, type TransitionId } from '../utils/workflow';
 
@@ -30,9 +32,10 @@ interface AssignOptions {
 }
 
 interface BugTrackerContextValue {
-  issues: Issue[];
-  visibleIssues: Issue[];
-  scopedIssues: Issue[];
+  /** Summary list (no description/comments/activity/attachments — see useFullIssue). */
+  issues: IssueSummary[];
+  visibleIssues: IssueSummary[];
+  scopedIssues: IssueSummary[];
   employees: Employee[];
   projects: Project[];
   teams: Team[];
@@ -45,7 +48,7 @@ interface BugTrackerContextValue {
   setProjectScope: (projectId: string) => void;
   getEmployee: (id: string | null | undefined) => Employee | undefined;
   getProject: (id: string) => Project | undefined;
-  getIssueByKey: (key: string) => Issue | undefined;
+  getIssueByKey: (key: string) => IssueSummary | undefined;
   getIssue: (key: string) => Promise<Issue | null>;
   notifications: AppNotification[];
   markNotificationsRead: () => void;
@@ -58,7 +61,12 @@ interface BugTrackerContextValue {
   deleteIssue: (key: string) => Promise<void>;
   resetPreviewData: () => void;
   loading: boolean;
+  /** True until the first issue list fetch has finished (success or failure). */
+  issuesLoading: boolean;
 }
+
+/** Fallback poll interval; socket.io pushes live updates in between. */
+const ISSUE_POLL_MS = 60000;
 
 const BugTrackerContext = createContext<BugTrackerContextValue | null>(null);
 
@@ -71,7 +79,7 @@ function mapWorkforceRoleToBt(role: string, canManagePayroll: boolean): Role {
 
 export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
   const { user } = useAuth();
-  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issues, setIssues] = useState<IssueSummary[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -82,6 +90,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
   const [projectScope, setProjectScope] = useState('all');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [issuesLoading, setIssuesLoading] = useState(true);
 
   const employeeMap = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees]);
   const mountedRef = useRef(true);
@@ -190,11 +199,32 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     return () => { mountedRef.current = false; };
   }, []);
 
+  // Comment ids already counted into a summary, so the poster's own HTTP
+  // response and the `issue:commented` socket event never both increment.
+  const countedCommentIds = useRef(new Set<string>());
+
+  /** Bump a summary's comment fields for a newly seen comment (idempotent per comment id). */
+  const applyComment = useCallback((issue: IssueSummary, comment: {id?: string;authorId: string;createdAt?: string;}): IssueSummary => {
+    if (comment.id) {
+      if (countedCommentIds.current.has(comment.id)) return issue;
+      countedCommentIds.current.add(comment.id);
+    }
+    const at = comment.createdAt ?? nowIso();
+    return {
+      ...issue,
+      updatedAt: at > issue.updatedAt ? at : issue.updatedAt,
+      commentCount: issue.commentCount + 1,
+      commentAuthorIds: issue.commentAuthorIds.includes(comment.authorId) ?
+      issue.commentAuthorIds :
+      [...issue.commentAuthorIds, comment.authorId]
+    };
+  }, []);
+
   const refreshIssues = useCallback(async (): Promise<void> => {
     try {
       const res = await bugTrackerApi.getIssues();
       if (!mountedRef.current) return;
-      const incoming = res.issues ?? [];
+      const incoming = (res.issues ?? []).map(toIssueSummary);
       setIssues((prev) => {
         const byId = new Map(prev.map((i) => [i.id, i]));
         for (const issue of incoming) {
@@ -207,28 +237,33 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     }
   }, []);
 
+  // Initial issue load (always runs, even if the tab is hidden), then a slow
+  // fallback poll. Live updates normally arrive via socket.io below; polling
+  // only covers a dropped socket. Returning to the tab triggers a refresh.
   useEffect(() => {
-    mountedRef.current = true;
+    let cancelled = false;
     (async () => {
-      try {
-        const res = await bugTrackerApi.getIssues();
-        if (mountedRef.current) setIssues(res.issues ?? []);
-      } catch (err) {
-        console.error('[bugTracker] issues load failed', err);
-      }
+      await refreshIssues();
+      if (!cancelled) setIssuesLoading(false);
     })();
-    return () => { mountedRef.current = false; };
-  }, []);
 
-  // Poll for issue changes so every screen sees live status updates
-  // from other users without a manual page refresh.
-  useEffect(() => {
-    const poll = async () => {
-      if (document.visibilityState === 'visible') await refreshIssues();
+    let lastFetch = Date.now();
+    const poll = () => {
+      if (document.visibilityState !== 'visible') return;
+      lastFetch = Date.now();
+      void refreshIssues();
     };
-    const id = window.setInterval(poll, 15000);
-    poll();
-    return () => window.clearInterval(id);
+    // Tab switches only refresh if the data is older than 30s.
+    const onVisible = () => {
+      if (Date.now() - lastFetch >= 30000) poll();
+    };
+    const id = window.setInterval(poll, ISSUE_POLL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refreshIssues]);
 
   // Socket.io: push issue updates instantly (sub-second) without polling.
@@ -252,20 +287,24 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     });
 
     // New issue created by anyone
-    socket.on('issue:created', (issue: Issue) => {
+    socket.on('issue:created', (payload: unknown) => {
+      const issue = toIssueSummary(payload);
       setIssues((prev) => {
         if (prev.some((i) => i.id === issue.id)) return prev;
         return [issue, ...prev];
       });
     });
 
-    // Issue fields updated (edit, assign, priority, etc.)
-    socket.on('issue:updated', (issue: Issue) => {
+    // Issue fields updated (edit, assign, comment, attachments, etc.).
+    // Carries server-truth counts, so it also corrects any local comment bump.
+    socket.on('issue:updated', (payload: unknown) => {
+      const issue = toIssueSummary(payload);
       setIssues((prev) => prev.map((i) => i.id === issue.id ? issue : i));
     });
 
     // Status transition (start, submit-qa, pass-qa, etc.)
-    socket.on('issue:transitioned', (issue: Issue) => {
+    socket.on('issue:transitioned', (payload: unknown) => {
+      const issue = toIssueSummary(payload);
       setIssues((prev) => prev.map((i) => i.id === issue.id ? issue : i));
     });
 
@@ -274,16 +313,12 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       setIssues((prev) => prev.filter((i) => i.key !== data.key && i.id !== data.id));
     });
 
-    // New comment added
+    // New comment added (an `issue:updated` with exact counts follows).
     socket.on('issue:commented', (data: { issueKey: string; comment: any }) => {
-      setIssues((prev) => prev.map((i) => {
-        if (i.id !== data.issueKey && i.key !== data.issueKey) return i;
-        return {
-          ...i,
-          updatedAt: new Date().toISOString(),
-          comments: [...i.comments, data.comment],
-        };
-      }));
+      if (!data?.comment) return;
+      setIssues((prev) => prev.map((i) =>
+        i.id === data.issueKey || i.key === data.issueKey ? applyComment(i, data.comment) : i
+      ));
     });
 
     return () => {
@@ -329,15 +364,16 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       const res = await bugTrackerApi.createIssue(draft);
       const issue = res.issue;
       if (!issue) return null;
-      setIssues((prev) => [issue, ...prev]);
+      // The socket `issue:created` event may have already added it.
+      const summary = toIssueSummary(issue);
+      setIssues((prev) => [summary, ...prev.filter((i) => i.id !== summary.id)]);
       notify([draft.assigneeId], 'Assigned to you', `${issue.key} ${issue.title}`, issue.key);
-      await refreshIssues();
       return issue;
     } catch (err: any) {
       console.error('[bugTracker] createIssue failed', err);
       throw new Error(err.message || 'Failed to report issue');
     }
-  }, [notify, refreshIssues]);
+  }, [notify]);
 
   const updateIssue = useCallback(async (id: string, patch: IssueEditablePatch): Promise<void> => {
     try {
@@ -345,13 +381,13 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (!issue) return;
       const res = await bugTrackerApi.updateIssue(issue.key, patch);
       if (res.issue) {
-        setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
+        const summary = toIssueSummary(res.issue);
+        setIssues((prev) => prev.map((i) => i.id === id ? summary : i));
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] updateIssue failed', err);
     }
-  }, [issues, refreshIssues]);
+  }, [issues]);
 
   const assignIssue = useCallback(async (id: string, { assigneeId, dueDate, priority }: AssignOptions): Promise<void> => {
     try {
@@ -366,17 +402,17 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
         status: movesToAssigned ? 'Assigned' : issue.status
       });
       if (res.issue) {
-        setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
+        const summary = toIssueSummary(res.issue);
+        setIssues((prev) => prev.map((i) => i.id === id ? summary : i));
         notify([assignee?.id ?? assigneeId], 'Assigned to you', `${issue.key} ${issue.title}`, issue.key);
       } else {
         toast.error('Failed to assign issue. Please try again.');
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] assignIssue failed', err);
       throw err;
     }
-  }, [issues, employeeMap, notify, refreshIssues]);
+  }, [issues, employeeMap, notify]);
 
   const runTransition = useCallback(async (id: string, transitionId: TransitionId, note?: string): Promise<void> => {
     try {
@@ -385,9 +421,9 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       const t = getTransition(transitionId);
       const res = await bugTrackerApi.transitionIssue(target.key, transitionId, t.to, note);
       if (res.issue) {
-        setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
+        const summary = toIssueSummary(res.issue);
+        setIssues((prev) => prev.map((i) => i.id === id ? summary : i));
       }
-      await refreshIssues();
       const label = `${target.key} ${target.title}`;
       if (transitionId === 'submit-qa') notify(['emp-sneha', 'emp-vikram'], 'Ready for QA', label, target.key);
       if (transitionId === 'fail-qa' || transitionId === 'reopen') notify([target.assigneeId, target.reporterId], 'Issue reopened', label, target.key);
@@ -396,25 +432,22 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       console.error('[bugTracker] runTransition failed', err);
       throw err;
     }
-  }, [issues, notify, refreshIssues]);
+  }, [issues, notify]);
 
   const addComment = useCallback(async (id: string, body: string, kind: CommentKind): Promise<void> => {
     try {
       const issue = issues.find((i) => i.id === id);
       if (!issue) return;
       const res = await bugTrackerApi.addComment(issue.key, body, kind);
-      if (res.comment) {
-        setIssues((prev) => prev.map((i) => i.id === id ? ({
-          ...i,
-          updatedAt: nowIso(),
-          comments: [...i.comments, res.comment as any]
-        }) : i));
+      const comment = res.comment;
+      if (comment) {
+        // Idempotent: the socket `issue:commented` event may have counted it already.
+        setIssues((prev) => prev.map((i) => i.id === id ? applyComment(i, comment) : i));
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] addComment failed', err);
     }
-  }, [issues, refreshIssues]);
+  }, [issues, applyComment]);
 
   const addAttachments = useCallback(async (id: string, attachments: Attachment[]): Promise<void> => {
     try {
@@ -422,24 +455,23 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
       if (!issue) return;
       const res = await bugTrackerApi.addAttachments(issue.key, attachments);
       if (res.issue) {
-        setIssues((prev) => prev.map((i) => i.id === id ? res.issue! : i));
+        const summary = toIssueSummary(res.issue);
+        setIssues((prev) => prev.map((i) => i.id === id ? summary : i));
       }
-      await refreshIssues();
     } catch (err) {
       console.error('[bugTracker] addAttachments failed', err);
     }
-  }, [issues, refreshIssues]);
+  }, [issues]);
 
   const deleteIssue = useCallback(async (key: string): Promise<void> => {
     try {
       await bugTrackerApi.deleteIssue(key);
       setIssues((prev) => prev.filter((i) => i.key !== key));
-      await refreshIssues();
     } catch (err: any) {
       console.error('[bugTracker] deleteIssue failed', err);
       throw new Error(err.message || 'Failed to delete issue');
     }
-  }, [refreshIssues]);
+  }, []);
 
   const markNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n: AppNotification) => n.recipientId === currentUser.id ? { ...n, read: true } : n));
@@ -479,7 +511,8 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     addAttachments,
     deleteIssue,
     resetPreviewData,
-    loading
+    loading,
+    issuesLoading
   };
 
   return <BugTrackerContext.Provider value={value}>{children}</BugTrackerContext.Provider>;

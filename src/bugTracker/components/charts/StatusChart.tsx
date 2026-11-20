@@ -1,10 +1,10 @@
 import React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { statusStyles } from '../../utils/issueStyles';
 import { ALL_STATUSES } from '../../utils/workflow';
 
-export function StatusChart({ issues }: {issues: Issue[];}) {
+export function StatusChart({ issues }: {issues: IssueBase[];}) {
   const data = ALL_STATUSES.map((status) => ({ status, count: issues.filter((i) => i.status === status).length, fill: statusStyles[status].hex }));
   return (
     <div className="h-72 w-full" role="img" aria-label={`Issues by status: ${data.map((d) => `${d.status} ${d.count}`).join(', ')}`}>

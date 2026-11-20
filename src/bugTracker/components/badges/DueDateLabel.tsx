@@ -1,12 +1,12 @@
 import React from 'react';
 import { CalendarIcon } from 'lucide-react';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { formatShortDate } from '../../utils/dates';
 import { dueLabel } from '../../utils/issueMetrics';
 
 const toneClasses = { danger: 'text-danger-ink font-medium', warning: 'text-warning-ink font-medium', muted: 'text-ink-subtle' };
 
-export function DueDateLabel({ issue, variant = 'date' }: {issue: Issue;variant?: 'date' | 'relative';}) {
+export function DueDateLabel({ issue, variant = 'date' }: {issue: IssueBase;variant?: 'date' | 'relative';}) {
   const label = dueLabel(issue);
   if (!issue.dueDate) return <span className="text-xs text-ink-faint">—</span>;
   return (

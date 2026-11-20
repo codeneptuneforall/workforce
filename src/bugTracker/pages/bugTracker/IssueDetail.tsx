@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, FileQuestionIcon, PaperclipIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -17,18 +17,19 @@ import { AccessRestricted } from '../../components/ui/AccessRestricted';
 import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { PageLoadingSkeleton } from '../../components/ui/PageLoadingSkeleton';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useBugTracker } from '../../contexts/BugTrackerContext';
 import { bugTrackerRoutes, portalBase } from '../../data/navigation';
+import { useFullIssue } from '../../hooks/useFullIssue';
 import { useIssueTransition } from '../../hooks/useIssueTransition';
 import { isOverdue } from '../../utils/issueMetrics';
 import { canEditIssue, canViewIssue } from '../../utils/permissions';
 import { getAvailableTransitions } from '../../utils/workflow';
-import type { Issue } from '../../types/bugTracker';
 
 export function IssueDetail() {
   const { issueKey = '' } = useParams();
-  const { getIssueByKey, currentUser, permissions, getProject, updateIssue, addAttachments, getIssue, deleteIssue } = useBugTracker();
+  const { currentUser, permissions, getProject, updateIssue, addAttachments, deleteIssue } = useBugTracker();
   const { startTransition, openAssignment, dialogs } = useIssueTransition();
   const navigate = useNavigate();
   const [tab, setTab] = useState<'comments' | 'activity'>('comments');
@@ -36,21 +37,16 @@ export function IssueDetail() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [issueFromApi, setIssueFromApi] = useState<Issue | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const base = portalBase();
-  const localIssue = getIssueByKey(issueKey);
-  // Prefer live context data (polled every 15s) so status changes from anyone
-  // reflect without a page refresh. Fall back to one-time API fetch.
-  const issue = localIssue ?? issueFromApi;
+  // Always load the full issue from GET /issues/:key (the shared list is a
+  // summary). The hook refetches whenever the issue changes (own or others'
+  // edits arrive via socket and bump updatedAt).
+  const { issue, notFound } = useFullIssue(issueKey);
 
-  useEffect(() => {
-    if (!localIssue && issueKey) {
-      getIssue(issueKey).then((fetched) => {
-        if (fetched) setIssueFromApi(fetched);
-      });
-    }
-  }, [issueKey, localIssue, getIssue]);
+  if (!issue && !notFound) {
+    return <PageLoadingSkeleton rows={4} />;
+  }
 
   if (!issue) {
     return (

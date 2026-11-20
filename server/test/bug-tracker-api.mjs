@@ -89,12 +89,33 @@ function uniqueTitle(suffix) {
   return `E2E-${suffix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/*
+ * Test accounts come from the environment — no credentials in source.
+ * Run with:  node --env-file=.env --test server/test/bug-tracker-api.mjs
+ * Each role needs an existing Workforce user in the target database:
+ *   BT_TEST_ADMIN_EMAIL / BT_TEST_ADMIN_PASSWORD       (falls back to SEED_ADMIN_*)
+ *   BT_TEST_MANAGER_EMAIL / BT_TEST_MANAGER_PASSWORD   (falls back to SEED_MANAGER_*)
+ *   BT_TEST_DEVELOPER_EMAIL / BT_TEST_DEVELOPER_PASSWORD
+ *   BT_TEST_QA_EMAIL / BT_TEST_QA_PASSWORD
+ * Developer / QA passwords fall back to SEED_DEFAULT_PASSWORD.
+ */
+const env = process.env;
 const TEST_EMAILS = {
-  admin: 'admin@codeneptune.in',
-  manager: 'arjun.mehta@codeneptune.in',
-  developer: 'rahul.verma@codeneptune.in',
-  qa: 'sneha.nair@codeneptune.in',
+  admin: env.BT_TEST_ADMIN_EMAIL ?? env.SEED_ADMIN_EMAIL ?? 'admin@codeneptune.in',
+  manager: env.BT_TEST_MANAGER_EMAIL ?? env.SEED_MANAGER_EMAIL ?? 'arjun.mehta@codeneptune.in',
+  developer: env.BT_TEST_DEVELOPER_EMAIL ?? 'rahul.verma@codeneptune.in',
+  qa: env.BT_TEST_QA_EMAIL ?? 'sneha.nair@codeneptune.in',
 };
+const TEST_PASSWORDS = {
+  admin: env.BT_TEST_ADMIN_PASSWORD ?? env.SEED_ADMIN_PASSWORD ?? '',
+  manager: env.BT_TEST_MANAGER_PASSWORD ?? env.SEED_MANAGER_PASSWORD ?? '',
+  developer: env.BT_TEST_DEVELOPER_PASSWORD ?? env.SEED_DEFAULT_PASSWORD ?? '',
+  qa: env.BT_TEST_QA_PASSWORD ?? env.SEED_DEFAULT_PASSWORD ?? '',
+};
+const missingPasswords = Object.entries(TEST_PASSWORDS).filter(([, v]) => !v).map(([k]) => k);
+if (missingPasswords.length) {
+  console.warn(`WARNING: no test password set for: ${missingPasswords.join(', ')} — those logins will fail (see header comment).`);
+}
 
 // ── Test suite ────────────────────────────────────────────────────────────
 
@@ -105,7 +126,7 @@ test('T01 - unauthenticated requests are rejected', async () => {
 });
 
 test('T02 - admin full CRUD workflow', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Admin login succeeds (got ${login.status})`);
 
   const title = uniqueTitle('ADMIN');
@@ -158,7 +179,7 @@ test('T02 - admin full CRUD workflow', async () => {
 });
 
 test('T03 - developer sees only assigned issues', async () => {
-  const login = await loginAs(TEST_EMAILS.developer, 'Welcome@123', 'Traffic delay');
+  const login = await loginAs(TEST_EMAILS.developer, TEST_PASSWORDS.developer, 'Traffic delay');
   assertPass(login.status === 200, `Developer login succeeds (got ${login.status})`);
 
   const list = await fetchWithCookies('/api/bug-tracker/issues');
@@ -184,7 +205,7 @@ test('T03 - developer sees only assigned issues', async () => {
 });
 
 test('T04 - QA can view all issues and start testing on Fixed issues', async () => {
-  const login = await loginAs(TEST_EMAILS.qa, 'Welcome@123', 'Doctor appointment');
+  const login = await loginAs(TEST_EMAILS.qa, TEST_PASSWORDS.qa, 'Doctor appointment');
   assertPass(login.status === 200, `QA login succeeds (got ${login.status})`);
 
   const view = await fetchWithCookies('/api/bug-tracker/issues/WF-001');
@@ -199,7 +220,7 @@ test('T04 - QA can view all issues and start testing on Fixed issues', async () 
 });
 
 test('T05 - manager cannot view unrelated issues, cannot close already-closed', async () => {
-  const login = await loginAs(TEST_EMAILS.manager, 'Welcome@123');
+  const login = await loginAs(TEST_EMAILS.manager, TEST_PASSWORDS.manager);
   assertPass(login.status === 200, `Manager login succeeds (got ${login.status})`);
 
   const view = await fetchWithCookies('/api/bug-tracker/issues/WF-001');
@@ -214,7 +235,7 @@ test('T05 - manager cannot view unrelated issues, cannot close already-closed', 
 });
 
 test('T06 - fail closed for missing/unsupported BugTrackerEmployee records', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Admin (management+canManagePayroll, no linked BTE) maps to admin`);
 
   const list = await fetchWithCookies('/api/bug-tracker/issues');
@@ -226,7 +247,7 @@ test('T07 - reporter role untestable (no linked Workforce identity)', () => {
 });
 
 test('T08 - attachment upload authorized', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for attachment upload`);
 
   const created = await createIssue({
@@ -261,7 +282,7 @@ test('T09 - unauthenticated attachment download rejected', async () => {
 });
 
 test('T10 - path traversal blocked', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for path traversal test`);
 
   const traversal = await fetchWithCookies('/api/bug-tracker/issues/WF-001/attachments/download?filename=../../../etc/passwd');
@@ -269,7 +290,7 @@ test('T10 - path traversal blocked', async () => {
 });
 
 test('T11 - missing file returns 404', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for missing file test`);
 
   const missing = await fetchWithCookies('/api/bug-tracker/issues/WF-001/attachments/download?filename=nonexistent-file.txt');
@@ -277,7 +298,7 @@ test('T11 - missing file returns 404', async () => {
 });
 
 test('T12 - invalid issue key returns 404', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for invalid key test`);
 
   const invalid = await fetchWithCookies('/api/bug-tracker/issues/INVALID-KEY/attachments/download?filename=test.txt');
@@ -285,7 +306,7 @@ test('T12 - invalid issue key returns 404', async () => {
 });
 
 test('T13 - authorized attachment download works', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for authorized download`);
 
   // Create our own issue and attachment (independent of T08)
@@ -326,7 +347,7 @@ test('T13 - authorized attachment download works', async () => {
 });
 
 test('T14 - cannot download another issue attachment by filename substitution', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for cross-issue test`);
 
   // Upload an attachment to our own issue
@@ -366,7 +387,7 @@ test('T14 - cannot download another issue attachment by filename substitution', 
 });
 
 test('T15 - notifications endpoint works', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for notification test`);
 
   const notif = await fetchWithCookies('/api/bug-tracker/notifications');
@@ -377,7 +398,7 @@ test('T15 - notifications endpoint works', async () => {
 });
 
 test('T16 - issue creation succeeds (audit entries verified via issue persistence)', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for audit test`);
 
   const created = await createIssue({
@@ -394,12 +415,13 @@ test('T16 - issue creation succeeds (audit entries verified via issue persistenc
 });
 
 test('T17 - rate limiting is enforced', async () => {
-  const login = await loginAs(TEST_EMAILS.admin, 'Admin@12345');
+  const login = await loginAs(TEST_EMAILS.admin, TEST_PASSWORDS.admin);
   assertPass(login.status === 200, `Login for rate limit test`);
 
-  // Make many rapid requests to trigger rate limiting
+  // Make many rapid requests to trigger rate limiting.
+  // GET routes use the per-user read limiter (120/min), so go past that.
   let hit429 = false;
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < 130; i++) {
     const res = await fetchWithCookies('/api/bug-tracker/issues');
     if (res.status === 429) {
       hit429 = true;

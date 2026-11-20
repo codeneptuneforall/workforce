@@ -5,6 +5,7 @@
  * which is backed by MongoDB and protected by the same JWT session cookie.
  */
 import type {
+  ActivityFeedEntry,
   AppNotification,
   Attachment,
   CommentKind,
@@ -59,6 +60,16 @@ export const bugTrackerApi = {
   },
 
   getIssue: (key: string) => request<{ issue: Issue }>(`/issues/${key}`),
+
+  /** Overview "Recent activity" feed. `since` is YYYY-MM-DD (issues created on/after). */
+  getOverviewActivity: (opts: { projectId?: string; since?: string; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.projectId && opts.projectId !== 'all') params.set('projectId', opts.projectId);
+    if (opts.since) params.set('since', opts.since);
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const qs = params.toString();
+    return request<{ activity: ActivityFeedEntry[] }>(`/overview/activity${qs ? '?' + qs : ''}`);
+  },
 
   createIssue: (draft: IssueDraft) =>
     request<{ issue: Issue }>('/issues', { method: 'POST', body: JSON.stringify(draft) }),

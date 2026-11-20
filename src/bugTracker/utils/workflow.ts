@@ -1,4 +1,4 @@
-import type { Issue, IssueStatus, Role } from '../types/bugTracker';
+import type { IssueBase, IssueStatus, Role } from '../types/bugTracker';
 
 export const WORKFLOW_STATUSES: IssueStatus[] = ['New', 'Triaged', 'Assigned', 'In Progress', 'Fixed', 'QA Testing', 'Resolved', 'Closed'];
 export const ALL_STATUSES: IssueStatus[] = ['New', 'Triaged', 'Assigned', 'In Progress', 'Reopened', 'Fixed', 'QA Testing', 'Resolved', 'Closed'];
@@ -68,7 +68,7 @@ export function getTransition(id: TransitionId): WorkflowTransition {
   return transition;
 }
 
-export function getAvailableTransitions(issue: Issue, role: Role, userId: string): WorkflowTransition[] {
+export function getAvailableTransitions(issue: IssueBase, role: Role, userId: string): WorkflowTransition[] {
   return transitions.filter((t) => {
     if (!t.from.includes(issue.status) || !t.roles.includes(role)) return false;
     if (role === 'developer' && t.assigneeOnly && issue.assigneeId !== userId) return false;
@@ -78,6 +78,6 @@ export function getAvailableTransitions(issue: Issue, role: Role, userId: string
   });
 }
 
-export function findTransitionTo(issue: Issue, target: IssueStatus, role: Role, userId: string): WorkflowTransition | undefined {
+export function findTransitionTo(issue: IssueBase, target: IssueStatus, role: Role, userId: string): WorkflowTransition | undefined {
   return getAvailableTransitions(issue, role, userId).find((t) => t.to === target);
 }

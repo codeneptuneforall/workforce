@@ -1,10 +1,10 @@
 import React from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { severities } from '../../data/trackerConfig';
-import type { Issue } from '../../types/bugTracker';
+import type { IssueBase } from '../../types/bugTracker';
 import { severityStyles } from '../../utils/issueStyles';
 
-export function SeverityChart({ issues }: {issues: Issue[];}) {
+export function SeverityChart({ issues }: {issues: IssueBase[];}) {
   const data = severities.map((s) => ({ name: s, value: issues.filter((i) => i.severity === s).length, fill: severityStyles[s].hex }));
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
