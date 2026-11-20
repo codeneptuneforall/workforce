@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { requireAuth } from '../auth';
 import type { AuthUser } from '../../shared/types';
 import { io } from '../socket';
+import { invalidateCache } from '../store';
 import {
   AuditModel,
   BugTrackerIssueModel,
@@ -766,5 +767,7 @@ bugTrackerRouter.post('/notifications/read', issueLimiter, async (_req, res) => 
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
   await BugTrackerNotificationModel.updateMany({ recipientId: _req.user!.id, read: false }, { $set: { read: true } });
   await NotificationModel.updateMany({ audience: _req.user!.id, read: false }, { $set: { read: true } });
+  // Workforce notifications live in the cached state; drop it so the read flags show.
+  invalidateCache();
   res.json({ ok: true });
 });

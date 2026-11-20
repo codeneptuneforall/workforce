@@ -23,6 +23,11 @@ export const config = {
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS ?? 12),
   cookieName: 'wf_session',
   resetTokenTtlMinutes: Number(process.env.RESET_TOKEN_TTL_MINUTES ?? 30),
+  /**
+   * How long the in-memory state cache may be served before it is rebuilt from MongoDB.
+   * Bounds staleness from writes that bypass the cache and stops it growing unbounded.
+   */
+  stateCacheTtlMs: Number(process.env.STATE_CACHE_TTL_MS ?? 60_000),
   clientOrigins: (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())
