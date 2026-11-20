@@ -231,10 +231,30 @@ function resolveAttachmentPath(filename: string): string | null {
   return resolved;
 }
 
-/** Rate limiting (reuse express-rate-limit, already a dependency) */
+/**
+ * Rate limiting (reuse express-rate-limit, already a dependency).
+ *
+ * Limits are counted per signed-in user (requireAuth runs first), not per IP,
+ * so colleagues behind one office NAT don't share a budget. Reads and writes
+ * have separate budgets so normal browsing can't starve mutations.
+ */
+const perUserKey = (req: any): string => (req.user?.id ? `u:${req.user.id}` : `ip:${req.ip}`);
+
+/** GET endpoints: issue list/detail, directory lookups, notifications, downloads. */
+const readLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  keyGenerator: perUserKey,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' }
+});
+
+/** Issue create / edit / transition / delete, notification mark-read. */
 const issueLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 30,
+  keyGenerator: perUserKey,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many issue requests. Please slow down.' }
@@ -243,6 +263,7 @@ const issueLimiter = rateLimit({
 const commentLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 60,
+  keyGenerator: perUserKey,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many comments. Please slow down.' }
@@ -251,6 +272,7 @@ const commentLimiter = rateLimit({
 const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 20,
+  keyGenerator: perUserKey,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many uploads. Please slow down.' }
@@ -266,7 +288,7 @@ function toApiIssue(doc: any): any {
 
 /** Issue list with optional filters */
 
-bugTrackerRouter.get('/issues', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/issues', readLimiter, async (_req, res) => {
   const { projectId, status, assigneeId, reporterId, search } = _req.query as Record<string, string> | undefined ?? {};
   const context = await getBugTrackerContext(_req.user!);
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity. Contact an administrator.' }); return; }
@@ -285,7 +307,7 @@ bugTrackerRouter.get('/issues', issueLimiter, async (_req, res) => {
     // Resolve project memberships from Workforce.
     let projectIds: string[] = [];
     if (_req.user!.role === 'employee' && _req.user!.employeeId) {
-      const projects = await ProjectModel.find({ employeeIds: _req.user!.employeeId }).lean();
+      const projects = await ProjectModel.find({ employeeIds: _req.user!.employeeId }, { _id: 1 }).lean();
       projectIds = projects.map((p: any) => p._id);
     }
     visible = issues.filter((issue: any) =>
@@ -299,7 +321,7 @@ bugTrackerRouter.get('/issues', issueLimiter, async (_req, res) => {
 });
 
 /** Single issue by key � visibility checked server-side. */
-bugTrackerRouter.get('/issues/:key', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/issues/:key', readLimiter, async (_req, res) => {
   const issue = await BugTrackerIssueModel.findOne({ key: _req.params.key }).lean();
   if (!issue) { res.status(404).json({ error: 'Issue not found.' }); return; }
   const context = await getBugTrackerContext(_req.user!);
@@ -625,7 +647,7 @@ bugTrackerRouter.post('/issues/:key/attachments/upload', uploadLimiter, btUpload
 /** Download/preview a file attachment � authenticated, authorization-checked.
  *  Serves the file only if the requesting user can view the associated issue.
  *  Path traversal is prevented by resolving through path.basename. */
-bugTrackerRouter.get('/issues/:key/attachments/download', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/issues/:key/attachments/download', readLimiter, async (_req, res) => {
   const { filename } = _req.query as { filename?: string };
   if (!filename) { res.status(400).json({ error: 'Missing filename.' }); return; }
 
@@ -668,7 +690,7 @@ bugTrackerRouter.get('/issues/:key/attachments/download', issueLimiter, async (_
 });
 
 /** Employee directory for bug tracker � uses existing Workforce employee data. */
-bugTrackerRouter.get('/employees', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/employees', readLimiter, async (_req, res) => {
   const wfEmployees = await EmployeeModel.find({ status: 'Active' }).sort({ name: 1 }).lean();
   const projects = await ProjectModel.find({}).lean();
   const allUsers = await UserModel.find({ active: true }).lean();
@@ -728,7 +750,7 @@ bugTrackerRouter.get('/employees', issueLimiter, async (_req, res) => {
 });
 
 /** Projects for bug tracker � uses Workforce project data. */
-bugTrackerRouter.get('/projects', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/projects', readLimiter, async (_req, res) => {
   const projects = await ProjectModel.find({}).sort({ name: 1 }).lean();
   const mapped = projects.map((p: any) => ({
     id: p._id,
@@ -740,7 +762,7 @@ bugTrackerRouter.get('/projects', issueLimiter, async (_req, res) => {
 });
 
 /** Teams for bug tracker � uses Workforce team data. */
-bugTrackerRouter.get('/teams', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/teams', readLimiter, async (_req, res) => {
   const teams = await TeamModel.find({}).sort({ name: 1 }).lean();
   const mapped = teams.map((t: any) => ({
     id: t._id,
@@ -751,7 +773,7 @@ bugTrackerRouter.get('/teams', issueLimiter, async (_req, res) => {
 });
 
 /** Notifications for the signed-in user � Workforce notifications merged with Bug Tracker notifications. */
-bugTrackerRouter.get('/notifications', issueLimiter, async (_req, res) => {
+bugTrackerRouter.get('/notifications', readLimiter, async (_req, res) => {
   const context = await getBugTrackerContext(_req.user!);
   if (!context) { res.status(403).json({ error: 'No Bug Tracker directory record for your identity.' }); return; }
   const btNotifications = await BugTrackerNotificationModel.find({ recipientId: _req.user!.id }).sort({ createdAt: -1 }).lean();

@@ -32,9 +32,13 @@ production, create them manually in the DB (see below).
    Confirm the limiter runs **after** auth middleware so `req.user` is set.
 
 2. **Separate read and write limits.**
-   - `issueReadLimiter`: 120/min — `GET /issues`, `GET /issues/:key`, `GET /overview/*`,
-     attachment download.
-   - `issueWriteLimiter`: 30/min (current value) — POST / PATCH / DELETE.
+   - `readLimiter`: 120/min — `GET /issues`, `GET /issues/:key`, `GET /overview/*`,
+     attachment download, and `/employees`, `/projects`, `/teams`, `/notifications`
+     (these 4 were also on the 30/min issue limiter and fire on every page open).
+   - `issueLimiter`: 30/min (unchanged) — POST / PATCH / DELETE.
+   - `commentLimiter` / `uploadLimiter`: unchanged limits, now also per user.
+   - express-rate-limit is 7.5.1, so a custom `keyGenerator` using `req.ip` as the
+     fallback is fine (no IPv6 key validation until v8).
 
 3. **Employee project lookup** in `GET /issues` (~line 289): add a projection so only
    `_id` is loaded:
