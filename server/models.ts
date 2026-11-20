@@ -90,7 +90,14 @@ const EmployeeSchema = new Schema(
     teamId: String,
     joiningDate: String,
     dateOfBirth: String,
+    // External photo link (typed in the employee form) or a legacy base64 data URL.
     photoUrl: String,
+    // Uploaded photo stored in Cloudinary. Only the path is kept; the API builds the URL.
+    // Written only by the upload endpoint, never from client-sent employee data.
+    photo: {
+      type: new Schema({ publicId: { type: String, required: true }, version: Number, format: String }, { _id: false }),
+      default: undefined
+    },
     bloodGroup: String,
     emergencyNumber: String,
     address: String,
@@ -423,10 +430,16 @@ const BugTrackerIssueSchema = new Schema(
           {
             id: { type: String, required: true },
             name: { type: String, required: true },
-            fileName: { type: String }, // on-disk filename for authenticated download
+            fileName: { type: String }, // legacy: on-disk filename for authenticated download
             sizeKb: { type: Number, default: 0 },
             kind: { type: String, default: 'document' },
-            previewUrl: String,
+            previewUrl: String, // legacy: base64 data URL; Cloudinary assets get a signed URL per response instead
+            // Cloudinary storage (set only by the server's upload route, never from client JSON).
+            publicId: String,
+            resourceType: String,
+            deliveryType: String,
+            format: String,
+            version: Number,
             uploadedById: { type: String, required: true },
             uploadedAt: { type: String, required: true }
           },

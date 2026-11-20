@@ -57,12 +57,21 @@ interface BugTrackerContextValue {
   assignIssue: (id: string, options: AssignOptions) => Promise<void>;
   runTransition: (id: string, transitionId: TransitionId, note?: string) => Promise<void>;
   addComment: (id: string, body: string, kind: CommentKind) => Promise<void>;
-  addAttachments: (id: string, attachments: Attachment[]) => Promise<void>;
+  /** Upload picked files to an existing issue (by id). Resolves with any names that failed. */
+  addAttachments: (id: string, attachments: Attachment[]) => Promise<AttachmentUploadResult>;
+  /** Same, by issue key; used right after creating an issue. */
+  uploadAttachments: (issueKey: string, attachments: Attachment[]) => Promise<AttachmentUploadResult>;
   deleteIssue: (key: string) => Promise<void>;
   resetPreviewData: () => void;
   loading: boolean;
   /** True until the first issue list fetch has finished (success or failure). */
   issuesLoading: boolean;
+}
+
+export interface AttachmentUploadResult {
+  uploaded: number;
+  /** Names of files that could not be stored. */
+  failed: string[];
 }
 
 /** Fallback poll interval; socket.io pushes live updates in between. */
@@ -449,19 +458,37 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     }
   }, [issues, applyComment]);
 
-  const addAttachments = useCallback(async (id: string, attachments: Attachment[]): Promise<void> => {
-    try {
-      const issue = issues.find((i) => i.id === id);
-      if (!issue) return;
-      const res = await bugTrackerApi.addAttachments(issue.key, attachments);
-      if (res.issue) {
-        const summary = toIssueSummary(res.issue);
-        setIssues((prev) => prev.map((i) => i.id === id ? summary : i));
+  /**
+   * Upload picked files to an issue, one at a time. Each file is stored in Cloudinary
+   * by the server. Returns the names that failed, so callers can tell the user instead
+   * of dropping them silently.
+   */
+  const uploadFilesToIssue = useCallback(async (issueKey: string, attachments: Attachment[]): Promise<AttachmentUploadResult> => {
+    const result: AttachmentUploadResult = { uploaded: 0, failed: [] };
+    for (const a of attachments) {
+      if (!a.file) { result.failed.push(a.name); continue; }
+      try {
+        const res = await bugTrackerApi.uploadAttachment(issueKey, a.file);
+        result.uploaded++;
+        if (res.issue) {
+          const summary = toIssueSummary(res.issue);
+          setIssues((prev) => prev.map((i) => i.key === issueKey ? summary : i));
+        }
+      } catch (err) {
+        console.error('[bugTracker] attachment upload failed', a.name, err);
+        result.failed.push(a.name);
+      } finally {
+        if (a.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(a.previewUrl);
       }
-    } catch (err) {
-      console.error('[bugTracker] addAttachments failed', err);
     }
-  }, [issues]);
+    return result;
+  }, []);
+
+  const addAttachments = useCallback(async (id: string, attachments: Attachment[]): Promise<AttachmentUploadResult> => {
+    const issue = issues.find((i) => i.id === id);
+    if (!issue) return { uploaded: 0, failed: attachments.map((a) => a.name) };
+    return uploadFilesToIssue(issue.key, attachments);
+  }, [issues, uploadFilesToIssue]);
 
   const deleteIssue = useCallback(async (key: string): Promise<void> => {
     try {
@@ -509,6 +536,7 @@ export function BugTrackerProvider({ children }: {children: React.ReactNode;}) {
     runTransition,
     addComment,
     addAttachments,
+    uploadAttachments: uploadFilesToIssue,
     deleteIssue,
     resetPreviewData,
     loading,

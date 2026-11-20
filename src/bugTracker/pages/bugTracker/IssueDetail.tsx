@@ -205,12 +205,12 @@ export function IssueDetail() {
                 className="sr-only"
                 aria-label="Attach files to issue"
                 onChange={(e) => {
-                  filesToAttachments(Array.from(e.target.files ?? []), currentUser.id).then(({ accepted, rejected }) => {
-                    if (accepted.length) {
-                      addAttachments(issue.id, accepted);
-                      toast.success(`${accepted.length} file${accepted.length > 1 ? 's' : ''} attached`);
-                    }
+                  filesToAttachments(Array.from(e.target.files ?? []), currentUser.id).then(async ({ accepted, rejected }) => {
                     if (rejected.length) toast.error(`Too large to attach: ${rejected.join(', ')}`);
+                    if (!accepted.length) return;
+                    const { uploaded, failed } = await addAttachments(issue.id, accepted);
+                    if (uploaded) toast.success(`${uploaded} file${uploaded > 1 ? 's' : ''} attached`);
+                    if (failed.length) toast.error(`Could not attach: ${failed.join(', ')}. Please try again.`);
                   });
                   e.target.value = '';
                 }} />
@@ -227,8 +227,10 @@ export function IssueDetail() {
                         : undefined}
                       onClick={(a.previewUrl || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name) || a.kind === 'image') ? () => {
                         const url = a.previewUrl || `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(a.fileName ?? a.name)}`;
-                        console.log('[IssueDetail] opening image preview:', url);
-                        setPreviewImage(url);
+                        const isImage = a.kind === 'image' || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name);
+                        // Images open in the in-page preview; PDFs and logs open in a new tab.
+                        if (isImage) setPreviewImage(url);
+                        else window.open(url, '_blank', 'noopener,noreferrer');
                       } : undefined} />
                   </li>
               )}

@@ -8,6 +8,7 @@ import { requireAuth } from '../auth';
 import type { AuthUser } from '../../shared/types';
 import { io } from '../socket';
 import { invalidateCache } from '../store';
+import { deleteAsset, signedUrl, StorageUnavailableError, uploadAttachment, type DeliveryType, type ResourceType } from '../storage/cloudinary';
 import {
   AuditModel,
   BugTrackerIssueModel,
@@ -197,20 +198,17 @@ async function createBtNotification(recipientId: string, title: string, body: st
   }).save();
 }
 
-/** Attachment storage (not publicly served) */
+/**
+ * Attachment storage.
+ *
+ * New uploads go to Cloudinary as private ("authenticated") assets under
+ * <root>/bug-tracker/<issueKey>/. Multer keeps the file in memory only long enough to
+ * stream it there. The legacy disk directory is kept for the old download route.
+ */
 
 const btUploadDir = path.resolve(projectRoot, "uploads/bug-tracker");
-if (!fs.existsSync(btUploadDir)) fs.mkdirSync(btUploadDir, { recursive: true });
 
-const btStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, btUploadDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || ".bin";
-    const id = (req as any).user?.id || "unknown";
-    const name = `bt-${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-    cb(null, name);
-  }
-});
+const btStorage = multer.memoryStorage();
 
 const btFileFilter = (_req: any, file: any, cb: any) => {
   const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/csv"];
@@ -282,13 +280,36 @@ const uploadLimiter = rateLimit({
 const ATTACHMENT_PREVIEW_COUNT = 3;
 
 /**
+ * Client-facing form of one attachment.
+ *
+ * Storage internals (publicId, resourceType, ...) never leave the server. Cloudinary
+ * assets get a signed URL only when `sign` is true, which callers pass only on HTTP
+ * responses that already passed the issue permission check. Socket broadcasts reach
+ * every connected user, so they always use sign=false and carry no URL for private
+ * files. Legacy attachments (base64 previewUrl) pass through unchanged.
+ */
+function presentAttachment(a: any, sign: boolean): any {
+  if (!a || typeof a !== 'object') return a;
+  const { publicId, resourceType, deliveryType, format, version, ...rest } = a;
+  if (publicId) {
+    rest.stored = true;
+    rest.previewUrl = sign
+      ? signedUrl({ publicId, resourceType: resourceType as ResourceType, deliveryType: deliveryType as DeliveryType, format, version })
+      : undefined;
+  }
+  return rest;
+}
+
+/**
  * Normalize a Mongoose lean issue document into the frontend contract (id = _id)
  * and add the summary fields the issue list relies on:
  * commentCount, commentAuthorIds, attachmentCount, attachmentPreview, resolvedAt.
  * Docs that already carry them (from the list aggregation) are left as is.
+ * `sign` adds signed URLs for stored attachments (see presentAttachment).
  */
-function toApiIssue(doc: any): any {
+function toApiIssue(doc: any, opts: { sign?: boolean } = {}): any {
   if (!doc) return doc;
+  const sign = opts.sign === true;
   const out = { ...doc };
   if (out._id !== undefined && out.id === undefined) out.id = out._id;
   if (Array.isArray(out.comments)) {
@@ -299,9 +320,38 @@ function toApiIssue(doc: any): any {
     out.attachmentCount = out.attachments.length;
     // First few *image* attachments — what the Kanban card renders as thumbnails.
     out.attachmentPreview = out.attachments.filter((a: any) => a.kind === 'image').slice(0, ATTACHMENT_PREVIEW_COUNT);
+    out.attachments = out.attachments.map((a: any) => presentAttachment(a, sign));
+  }
+  if (Array.isArray(out.attachmentPreview)) {
+    out.attachmentPreview = out.attachmentPreview.map((a: any) => presentAttachment(a, sign));
   }
   if (out.resolvedAt === undefined) out.resolvedAt = out.resolution?.resolvedAt ?? null;
   return out;
+}
+
+/** HTTP-response form: signed URLs included. Only call after the permission check. */
+const toSignedApiIssue = (doc: any): any => toApiIssue(doc, { sign: true });
+
+/**
+ * Attachments sent as JSON by a client (legacy base64 flow). Only display fields are
+ * kept: storage fields are stripped so nobody can point an attachment at another
+ * issue's private Cloudinary asset and get a signed URL for it, and the uploader is
+ * always the caller.
+ */
+function sanitizeClientAttachments(input: unknown, uploaderId: string): any[] {
+  if (!Array.isArray(input)) return [];
+  const now = new Date().toISOString();
+  return input
+    .filter((a: any) => a && typeof a === 'object' && a.name)
+    .map((a: any) => ({
+      id: String(a.id ?? `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`),
+      name: String(a.name).slice(0, 255),
+      sizeKb: Number.isFinite(Number(a.sizeKb)) ? Number(a.sizeKb) : 0,
+      kind: ['image', 'document', 'log'].includes(a.kind) ? a.kind : 'document',
+      ...(typeof a.previewUrl === 'string' && a.previewUrl.startsWith('data:image/') ? { previewUrl: a.previewUrl } : {}),
+      uploadedById: uploaderId,
+      uploadedAt: typeof a.uploadedAt === 'string' ? a.uploadedAt : now
+    }));
 }
 
 /** Fields only sent with the full issue (GET /issues/:key, mutation responses). */
@@ -388,7 +438,7 @@ bugTrackerRouter.get('/issues', readLimiter, async (_req, res) => {
     { $project: ISSUE_SUMMARY_PROJECTION }
   ]);
 
-  res.json({ issues: issues.map(toApiIssue) });
+  res.json({ issues: issues.map(toSignedApiIssue) });
 });
 
 /**
@@ -448,7 +498,7 @@ bugTrackerRouter.get('/issues/:key', readLimiter, async (_req, res) => {
   if (!allowed) {
     res.status(403).json({ error: 'You do not have permission to view this issue.' }); return;
   }
-  res.json({ issue: toApiIssue(issue) });
+  res.json({ issue: toSignedApiIssue(issue) });
 });
 
 /** Create a new issue � any authenticated user with directory access may report. */
@@ -484,7 +534,7 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
     expectedResult: String(body.expectedResult ?? ''),
     actualResult: String(body.actualResult ?? ''),
     labels: Array.isArray(body.labels) ? body.labels : [],
-    attachments: Array.isArray(body.attachments) ? body.attachments : [],
+    attachments: sanitizeClientAttachments(body.attachments, btId),
     comments: [],
     activity: [{ id: `act-${Date.now().toString(36)}`, actorId: btId, message: 'reported this issue', createdAt: now, toStatus: 'New' }],
     relatedIssueKeys: [],
@@ -505,7 +555,7 @@ bugTrackerRouter.post('/issues', issueLimiter, async (_req, res) => {
     }
   }
 
-  res.status(201).json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  res.status(201).json({ issue: toSignedApiIssue(issue.toObject({ virtuals: true })) });
   io.emit('issue:created', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
@@ -549,7 +599,7 @@ bugTrackerRouter.patch('/issues/:key', issueLimiter, async (_req, res) => {
     }
   }
 
-  res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  res.json({ issue: toSignedApiIssue(issue.toObject({ virtuals: true })) });
   io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
@@ -644,7 +694,7 @@ bugTrackerRouter.post('/issues/:key/transition', issueLimiter, async (_req, res)
     }
   }
 
-  res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  res.json({ issue: toSignedApiIssue(issue.toObject({ virtuals: true })) });
   io.emit('issue:transitioned', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
@@ -697,7 +747,12 @@ bugTrackerRouter.delete('/issues/:key', issueLimiter, async (_req, res) => {
   if (!isAdminOrManager && !isReporter) {
     res.status(403).json({ error: 'You do not have permission to delete this issue.' }); return;
   }
+  const storedFiles = (issue.attachments ?? []).filter((a: any) => a.publicId);
   await issue.deleteOne();
+  // Remove the issue's files from Cloudinary too (best effort, never blocks the delete).
+  for (const a of storedFiles as any[]) {
+    void deleteAsset({ publicId: a.publicId, resourceType: a.resourceType, deliveryType: a.deliveryType });
+  }
   try { await writeAuditEntry(_req.user!, 'Issue deleted', 'BugTrackerIssue', issue.key, issue.title, undefined); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
   res.json({ ok: true, key: issue.key });
   io.emit('issue:deleted', { key: issue.key, id: issue._id as string });
@@ -714,11 +769,11 @@ bugTrackerRouter.post('/issues/:key/attachments', uploadLimiter, async (_req, re
     res.status(403).json({ error: 'You do not have permission to attach to this issue.' }); return;
   }
   const body = _req.body as Record<string, unknown>;
-  const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+  const attachments = sanitizeClientAttachments(body.attachments, btId);
   issue.attachments.push(...(attachments as any));
   issue.updatedAt = new Date().toISOString();
   await issue.save();
-  res.json({ issue: toApiIssue(issue.toObject({ virtuals: true })) });
+  res.json({ issue: toSignedApiIssue(issue.toObject({ virtuals: true })) });
   io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 
@@ -737,28 +792,41 @@ bugTrackerRouter.post('/issues/:key/attachments/upload', uploadLimiter, btUpload
   const file = _req.file as Express.Multer.File;
   const now = new Date().toISOString();
   const isImage = file.mimetype.startsWith('image/');
-  // file.filename is the generated on-disk name (multer storage); file.originalname
-  // is the user-supplied name. Store both so the download endpoint can resolve the
-  // correct file on disk while displaying the original name to users.
+  const attachmentId = `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+  // Store the file in Cloudinary as a private asset under <root>/bug-tracker/<issueKey>/.
+  // Whatever Cloudinary reports (resource type, format, version) is what gets stored.
+  let stored;
+  try {
+    stored = await uploadAttachment(issue.key, attachmentId, file.buffer, file.mimetype, file.originalname);
+  } catch (err) {
+    if (err instanceof StorageUnavailableError) { res.status(503).json({ error: err.message }); return; }
+    logBtSideEffectError('bt-attachment-upload', err);
+    res.status(502).json({ error: 'Could not store the file. Please try again.' }); return;
+  }
+
   const attachment = {
-    id: `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    id: attachmentId,
     name: file.originalname,
-    fileName: file.filename,
     sizeKb: Math.max(1, Math.round(file.size / 1024)),
-    kind: isImage ? 'image' : /\.(log|har|txt)$/i.test(file.originalname) ? 'log' : /\.(pdf|csv)$/i.test(file.originalname) ? 'document' : 'document',
-    // previewUrl points to the authenticated download endpoint with the on-disk filename.
-    previewUrl: `/api/bug-tracker/issues/${issue.key}/attachments/download?filename=${encodeURIComponent(file.filename)}`,
+    kind: isImage ? 'image' : /\.(log|har|txt)$/i.test(file.originalname) ? 'log' : 'document',
     uploadedById: btId,
-    uploadedAt: now
+    uploadedAt: now,
+    publicId: stored.publicId,
+    resourceType: stored.resourceType,
+    deliveryType: stored.deliveryType,
+    format: stored.format,
+    version: stored.version
   };
 
-  issue.attachments.push(attachment);
+  issue.attachments.push(attachment as any);
   issue.updatedAt = now;
   await issue.save();
 
   try { await writeAuditEntry(_req.user!, 'Attachment uploaded', 'BugTrackerIssue', issue.key, undefined, file.originalname); } catch (err) { logBtSideEffectError('bt-side-effect-write', err); }
 
-  res.status(201).json({ attachment });
+  const full = toSignedApiIssue(issue.toObject({ virtuals: true }));
+  res.status(201).json({ attachment: presentAttachment(attachment, true), issue: full });
   io.emit('issue:updated', toIssueSummary(issue.toObject({ virtuals: true })));
 });
 

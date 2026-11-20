@@ -40,6 +40,10 @@ export const config = {
   seedDefaultPassword: process.env.SEED_DEFAULT_PASSWORD ?? '',
   /** Serve the built client from the API server (single-origin production deployment). */
   serveClient: process.env.SERVE_CLIENT !== 'false',
+  /** Cloudinary credentials (cloudinary://key:secret@cloud). Empty = file storage disabled. */
+  cloudinaryUrl: process.env.CLOUDINARY_URL ?? '',
+  /** Root folder for every stored asset: profiles/ and bug-tracker/<issueKey>/ live under it. */
+  cloudinaryFolder: (process.env.CLOUDINARY_FOLDER ?? (isProduction ? 'workforce' : 'workforce-dev')).replace(/^\/+|\/+$/g, ''),
   /** Enable the integrated Bug Tracker module. Defaults to enabled. */
   bugTrackerEnabled: process.env.BUG_TRACKER_ENABLED !== 'false'
 };

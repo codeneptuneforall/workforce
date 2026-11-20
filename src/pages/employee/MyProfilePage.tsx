@@ -10,20 +10,34 @@ import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { useMutation } from '../../hooks/useMutation';
 import { fmtDate, fmtMin } from '@shared/domain/time';
 import { workingDaysLabel } from '@shared/domain/compliance';
-import { cmd } from '../../utils/commands';
+import { toast } from 'sonner';
+import { BASE } from '../../api/client';
 
 export function MyProfilePage() {
   const emp = useCurrentEmployee();
   const { state, team, personName, refresh } = useData();
   const { logout } = useAuth();
-  const { mutate, error } = useMutation();
+  const { error } = useMutation();
 
+  /**
+   * The upload endpoint already saved the photo on the employee record (the server
+   * owns that field), so a new photo only needs a refresh. An empty url means "remove".
+   */
   const handlePhotoUpload = async (url: string) => {
     if (!emp) return;
-    const updated = { ...emp, photoUrl: url };
-    const ok = await mutate(cmd.saveEmployee(updated), 'Profile picture updated');
-    if (!ok) return; // Don't reload if save failed — error is shown by DataContext
-    // Refresh local state so the new photo shows immediately without a page reload.
+    if (!url) {
+      try {
+        const res = await fetch(`${BASE}/api/upload/profile-picture`, { method: 'DELETE', credentials: 'include' });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Remove failed (${res.status})`);
+        toast.success('Profile picture removed');
+      } catch (err: any) {
+        toast.error(err.message || 'Could not remove the photo.');
+        return;
+      }
+    } else {
+      toast.success('Profile picture updated');
+    }
+    // Refresh local state so the change shows immediately without a page reload.
     await refresh();
   };
 

@@ -22,26 +22,17 @@ export async function filesToAttachments(files: File[], uploaderId: string): Pro
       continue;
     }
     const isImage = file.type.startsWith('image/');
-    // Read images as base64 data URLs so the attachment travels with the
-    // issue record in MongoDB and previews on the issue detail page,
-    // surviving deploys / git commits / codebase changes.
-    let previewUrl: string | undefined = undefined;
-    if (isImage) {
-      previewUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Failed to read image'));
-        reader.readAsDataURL(file);
-      });
-    }
+    // The real file is kept in memory and uploaded to the server (which stores it in
+    // Cloudinary). Images get a local object URL for the preview until then.
     accepted.push({
       id: createId('att'),
       name: file.name,
       sizeKb: Math.max(1, Math.round(file.size / 1024)),
       kind: isImage ? 'image' : /\.(log|har|txt)$/i.test(file.name) ? 'log' : 'document',
-      previewUrl,
+      previewUrl: isImage ? URL.createObjectURL(file) : undefined,
       uploadedById: uploaderId,
-      uploadedAt: nowIso()
+      uploadedAt: nowIso(),
+      file
     });
   }
   return { accepted, rejected };
@@ -127,16 +118,14 @@ export function AttachmentPreview({ attachment, onClick, srcOverride }: {attachm
   const isImage = isImageKind || isImageExt;
   const Icon = isImage ? ImageIcon : attachment.kind === 'log' ? PaperclipIcon : FileTextIcon;
   // Resolve the image source: explicit override first, then previewUrl, then undefined (icon fallback).
-  const imgSrc = srcOverride || attachment.previewUrl;
-  const clickable = Boolean(imgSrc);
+  // Only images render as <img>; PDFs and logs show their icon.
+  const imgSrc = isImage ? (srcOverride || attachment.previewUrl) : undefined;
+  const clickable = Boolean(onClick);
   return (
     <>
       <div
         className={`flex h-20 items-center justify-center bg-canvas relative ${clickable ? 'cursor-pointer hover:bg-accent-soft hover:border-accent transition-colors' : 'cursor-default'}`}
-        onClick={() => {
-          console.log('[AttachmentPreview] clicked, isImage:', isImage, 'hasOnClick:', Boolean(onClick), 'hasImgSrc:', Boolean(imgSrc));
-          onClick?.();
-        }}
+        onClick={() => onClick?.()}
       >
         {imgSrc && !broken ?
         <img src={imgSrc} alt={attachment.name} className="h-full w-full object-cover" onError={() => setBroken(true)} /> :
